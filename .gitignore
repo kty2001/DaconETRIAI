@@ -1,0 +1,16 @@
+# Claude
+.claude
+CLAUDE.md
+
+# Ignore files
+*.pt
+*.pth
+*.ckpt
+*.log
+
+# Ignore directories
+.venv
+.git
+__pycache__/
+logs/
+data/
