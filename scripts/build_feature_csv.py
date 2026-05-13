@@ -2,8 +2,8 @@
 모든 피처를 하나의 CSV로 저장
 - ch2026_metrics_train.csv (레이블 포함)
 - parquet 집계 피처 v2 (시간대별 + mAmbience)
-- label 피처 (lag1/2, roll3/7)
-출력: data/features_all.csv
+- label 피처 (lag1/2/7, roll3/7/14/21/28, rollstd7/14)
+출력: data/features_all_v2.csv
 """
 
 import sys
@@ -70,15 +70,23 @@ def main():
     # ── 합치기 ────────────────────────────────────────────────────
     combined = pd.concat([train_merged, test_merged], ignore_index=True)
 
-    out_path = DATA / "features_all.csv"
+    out_path = DATA / "features_all_v2.csv"
     combined.to_csv(out_path, index=False)
 
     print(f"=== 저장 완료: {out_path} ===")
     print(f"  전체 행: {len(combined)} (train={len(train_merged)}, test={len(test_merged)})")
     print(f"  전체 컬럼: {len(combined.columns)}")
-    print(f"\n  컬럼 목록 ({len(combined.columns)}개):")
-    for col in combined.columns:
-        print(f"    {col}")
+
+    label_cols = [c for c in combined.columns if any(
+        c.startswith(p) for p in ("lag", "roll")
+    )]
+    parquet_cols = [c for c in combined.columns if c not in
+                    list(train.columns) + label_cols + ["split"]]
+    print(f"\n  피처 구성:")
+    print(f"    parquet 피처: {len(parquet_cols)}개")
+    print(f"    lag/roll 피처: {len(label_cols)}개")
+    print(f"      (기존) lag1/2/7, roll3/7/14 × 7타깃 = {6*7}개")
+    print(f"      (신규) roll21/28, rollstd7/14 × 7타깃 = {4*7}개")
 
 
 if __name__ == "__main__":

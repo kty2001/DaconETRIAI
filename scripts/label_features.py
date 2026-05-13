@@ -1,11 +1,13 @@
 """
-lag1/lag2/lag7 + roll3/roll7/roll14 피처 생성
+lag1/lag2/lag7 + roll3/roll7/roll14/roll21/roll28 + rollstd7/rollstd14 피처 생성
 - lag1: 전날 레이블 (date_diff <= 2인 경우만, 아니면 NaN)
 - lag2: 2일 전 레이블 (date_diff <= 2 연속 조건, 아니면 NaN)
 - lag7: 7일 전 레이블 (target-7일 ± 2일 이내 가장 가까운 값, 주간 패턴)
-- roll3: 최근 3개 이전 값의 평균 (30일 이내)
-- roll7: 최근 7개 이전 값의 평균 (30일 이내)
+- roll3/7: 최근 3/7개 이전 값의 평균 (30일 이내)
 - roll14: 최근 14개 이전 값의 평균 (60일 이내, 2주 패턴)
+- roll21/28: 최근 21/28개 이전 값의 평균 (90일 이내, 3~4주 패턴)
+- rollstd7: 최근 7개 이전 값의 표준편차 (30일 이내, 단기 변동성)
+- rollstd14: 최근 14개 이전 값의 표준편차 (60일 이내, 중기 변동성)
 
 반환: (subject_id, date) 기준 DataFrame
 date 컬럼 = lifelog_date와 join할 날짜
@@ -19,9 +21,10 @@ ROOT = Path(__file__).parent.parent
 DATA = ROOT / "data"
 
 TARGETS = ["Q1", "Q2", "Q3", "S1", "S2", "S3", "S4"]
-MAX_LAG_DAYS = 2       # 날짜 간격이 이 이상이면 lag를 NaN 처리
-ROLL_WINDOW_DAYS = 30  # roll3/roll7 계산 시 최대 30일 이내 값만 사용
-ROLL14_WINDOW_DAYS = 60  # roll14 계산 시 최대 60일 이내 값만 사용
+MAX_LAG_DAYS = 2         # 날짜 간격이 이 이상이면 lag를 NaN 처리
+ROLL_WINDOW_DAYS = 30    # roll3/roll7/rollstd7 계산 시 최대 30일 이내 값만 사용
+ROLL14_WINDOW_DAYS = 60  # roll14/rollstd14 계산 시 최대 60일 이내 값만 사용
+ROLL_LONG_WINDOW_DAYS = 90  # roll21/roll28 계산 시 최대 90일 이내 값만 사용
 
 
 def build_label_features(
@@ -92,6 +95,16 @@ def build_label_features(
             cutoff14 = target_sleep_date - pd.Timedelta(days=ROLL14_WINDOW_DAYS)
             recent14 = hist[hist["sleep_date"] >= cutoff14][t].dropna().values
             feat[f"roll14_{t}"] = float(np.mean(recent14[-14:])) if len(recent14) >= 1 else np.nan
+
+            # roll21/roll28: 90일 이내 최근 21/28개 평균 (3~4주 패턴)
+            cutoff_long = target_sleep_date - pd.Timedelta(days=ROLL_LONG_WINDOW_DAYS)
+            recent_long = hist[hist["sleep_date"] >= cutoff_long][t].dropna().values
+            feat[f"roll21_{t}"] = float(np.mean(recent_long[-21:])) if len(recent_long) >= 1 else np.nan
+            feat[f"roll28_{t}"] = float(np.mean(recent_long[-28:])) if len(recent_long) >= 1 else np.nan
+
+            # rollstd7/rollstd14: 표준편차 (변동성)
+            feat[f"rollstd7_{t}"]  = float(np.std(recent[-7:],    ddof=0)) if len(recent)   >= 2 else np.nan
+            feat[f"rollstd14_{t}"] = float(np.std(recent14[-14:], ddof=0)) if len(recent14) >= 2 else np.nan
 
         result_rows.append(feat)
 

@@ -20,3 +20,4 @@
 | xgb_optuna_prob | 0.6258 |
 | xgb_shap_select_prob | 0.6343 |
 | lgbm_catboost_ensemble_prob | 0.6170 |
+| catboost_optuna_prob | 0.6183 |
