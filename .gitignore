@@ -11,6 +11,6 @@ CLAUDE.md
 # Ignore directories
 .venv
 .git
-__pycache__/
-logs/
-data/
+__pycache__
+logs
+data

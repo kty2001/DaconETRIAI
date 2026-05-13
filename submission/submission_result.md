@@ -13,4 +13,10 @@
 | lgbm_optuna_prob | 0.6178 |
 | lgbm_usage_prob | 0.6239 |
 | lgbm_usage_zscore_prob | 0.6255 |
-
+| lgbm_optuna100_prob | 0.6228 |
+| lgbm_feat_select_prob | 0.6281 |
+| lgbm_usage_select_prob | 0.6215 |
+| lgbm_xgb_ensemble_prob | 0.6218 |
+| xgb_optuna_prob | 0.6258 |
+| xgb_shap_select_prob | 0.6343 |
+| lgbm_catboost_ensemble_prob | 0.6170 |
