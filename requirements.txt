@@ -1,0 +1,13 @@
+# 정확한 버전 고정 (재현성 보장)
+# uv pip install -r requirements.txt
+
+numpy==2.4.4
+pandas==3.0.2
+pyarrow==24.0.0
+scikit-learn==1.8.0
+lightgbm==4.6.0
+catboost==1.2.10
+xgboost==3.2.0
+optuna==4.8.0
+shap==0.51.0
+matplotlib==3.10.9

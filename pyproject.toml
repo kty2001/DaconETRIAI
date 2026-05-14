@@ -1,0 +1,20 @@
+[project]
+name = "dacon-etri-ai"
+version = "0.1.0"
+description = "ETRI 라이프로그 데이터를 활용한 수면 및 심리 지표 예측"
+requires-python = "==3.12.10"
+dependencies = [
+    "numpy>=2.4.4",
+    "pandas>=3.0.2",
+    "pyarrow>=24.0.0",
+    "scikit-learn>=1.8.0",
+    "lightgbm>=4.6.0",
+    "catboost>=1.2.10",
+    "xgboost>=3.2.0",
+    "optuna>=4.8.0",
+    "shap>=0.51.0",
+    "matplotlib>=3.10.9",
+]
+
+[tool.uv]
+dev-dependencies = []
