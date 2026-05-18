@@ -1,13 +1,15 @@
 """
-CatBoost 단독 예측
-- 타깃별 독립 Optuna 30 trials
-- best_params + 10 seeds 예측
-- mUsageStats 전체 제거 (원본 lgbm_optuna_prob 0.6178 기준 재현)
-출력: submission/catboost_optuna_prob.csv (clip 0.1~0.9)
+LightGBM + CatBoost OOF 기반 가중 앙상블
+- lgbm_v3 / catboost_v3 캐시 params 로드 (Optuna 생략)
+- 10 seeds 예측으로 lgbm_oof / cat_oof 축적
+- Phase 3: 타깃별 최적 α (LGBM 비중) OOF LogLoss 기준 그리드 탐색
+- 균등 50:50 대신 타깃별 최적 비율 적용
+출력: submission/lgbm_catboost_weighted_prob.csv (clip 0.1~0.9)
 """
 
 import numpy as np
 import pandas as pd
+import lightgbm as lgb
 from catboost import CatBoostClassifier
 import optuna
 from pathlib import Path
@@ -28,7 +30,8 @@ DATA = ROOT / "data"
 SUBMISSION_DIR = ROOT / "submission"
 SUBMISSION_DIR.mkdir(exist_ok=True)
 
-CAT_KEY = "catboost_v2"
+LGBM_KEY = "lgbm_v2"
+CAT_KEY  = "catboost_v2"
 
 TARGETS  = ["Q1", "Q2", "Q3", "S1", "S2", "S3", "S4"]
 SEEDS    = [42, 123, 456, 789, 1024, 2024, 3141, 5678, 9999, 31415]
@@ -46,6 +49,21 @@ DROP_USAGE = [
     "usage_apps_presleep", "usage_apps_sleep",
     "usage_presleep_ratio", "usage_sleep_ratio",
 ]
+
+LGBM_SEARCH = {
+    "num_leaves":        ("int",   8,    64),
+    "learning_rate":     ("float", 0.01, 0.3,  {"log": True}),
+    "n_estimators":      ("int",   100,  600),
+    "min_child_samples": ("int",   5,    50),
+    "subsample":         ("float", 0.5,  1.0),
+    "colsample_bytree":  ("float", 0.5,  1.0),
+    "reg_alpha":         ("float", 1e-8, 10.0, {"log": True}),
+    "reg_lambda":        ("float", 1e-8, 10.0, {"log": True}),
+}
+LGBM_FIXED = {
+    "objective": "binary", "metric": "binary_logloss",
+    "verbosity": -1, "random_state": 42,
+}
 
 CAT_SEARCH = {
     "iterations":          ("int",   100,  500),
@@ -167,7 +185,7 @@ def precompute_fold_features(train, test, parquet_feat, le, sensor_cols,
     return fold_by_target, te_by_target
 
 
-def make_objective(search_space, fixed_params, fold_features_t, y):
+def make_objective(model_type, search_space, fixed_params, fold_features_t, y):
     def objective(trial):
         params = {**fixed_params}
         for name, spec in search_space.items():
@@ -180,12 +198,29 @@ def make_objective(search_space, fixed_params, fold_features_t, y):
 
         oof = np.zeros(len(y))
         for tr_idx, val_idx, X_tr, X_val in fold_features_t:
-            model = CatBoostClassifier(**params)
-            model.fit(X_tr, y[tr_idx])
+            if model_type == "lgbm":
+                model = lgb.LGBMClassifier(**params)
+                model.fit(X_tr, y[tr_idx])
+            else:
+                seed = params.pop("random_seed", 42)
+                model = CatBoostClassifier(**params, random_seed=seed)
+                model.fit(X_tr, y[tr_idx])
+                params["random_seed"] = seed
             oof[val_idx] = model.predict_proba(X_val)[:, 1]
         return log_loss(y, oof)
 
     return objective
+
+
+def find_best_alpha(lgbm_oof, cat_oof, y):
+    """OOF LogLoss 기준 최적 LGBM 비중(α) 그리드 탐색"""
+    alphas = np.linspace(0, 1, 21)
+    best_ll, best_a = np.inf, 0.5
+    for a in alphas:
+        ll = log_loss(y, a * lgbm_oof + (1 - a) * cat_oof)
+        if ll < best_ll:
+            best_ll, best_a = ll, a
+    return best_a, best_ll
 
 
 def train_and_predict(train, test, parquet_feat):
@@ -220,24 +255,51 @@ def train_and_predict(train, test, parquet_feat):
     )
     print(f"  완료 (피처 수: {fold_by_target[TARGETS[0]][0][2].shape[1]}개)\n")
 
-    # ── Phase 1: Optuna 또는 캐시 로드 ──────────────────────────────────────
-    cached_cat = load_params(CAT_KEY)
+    # ── Phase 1: 캐시 로드 (Optuna 생략) ─────────────────────────────────────
+    cached_lgbm = load_params(LGBM_KEY)
+    cached_cat  = load_params(CAT_KEY)
+
+    if cached_lgbm:
+        print(f"=== Phase 1-A: 저장된 params 로드 ({LGBM_KEY}) ===")
+        best_lgbm = {t: cached_lgbm[t] for t in TARGETS}
+        for t in TARGETS:
+            bp = best_lgbm[t]
+            print(f"  {t}: leaves={bp['num_leaves']}, lr={bp['learning_rate']:.4f}, n_est={bp['n_estimators']}")
+        print()
+    else:
+        print(f"=== Phase 1-A: LGBM Optuna ({N_TRIALS} trials/target) ===")
+        best_lgbm = {}
+        for t in TARGETS:
+            y = train[t].values
+            study = optuna.create_study(direction="minimize",
+                                        sampler=optuna.samplers.TPESampler(seed=42))
+            study.optimize(make_objective("lgbm", LGBM_SEARCH, LGBM_FIXED,
+                                          fold_by_target[t], y),
+                           n_trials=N_TRIALS, show_progress_bar=False)
+            bp = {**LGBM_FIXED, **study.best_params}
+            best_lgbm[t] = bp
+            print(f"  {t}: LogLoss={study.best_value:.4f} | "
+                  f"leaves={bp['num_leaves']}, lr={bp['learning_rate']:.4f}, "
+                  f"n_est={bp['n_estimators']}")
+        print()
+        save_params(LGBM_KEY, best_lgbm)
 
     if cached_cat:
-        print(f"=== Phase 1: 저장된 params 로드 ({CAT_KEY}) ===")
+        print(f"=== Phase 1-B: 저장된 params 로드 ({CAT_KEY}) ===")
         best_cat = {t: cached_cat[t] for t in TARGETS}
         for t in TARGETS:
             bp = best_cat[t]
             print(f"  {t}: depth={bp['depth']}, lr={bp['learning_rate']:.4f}, iter={bp['iterations']}")
         print()
     else:
-        print(f"=== Phase 1: CatBoost Optuna ({N_TRIALS} trials/target) ===")
+        print(f"=== Phase 1-B: CatBoost Optuna ({N_TRIALS} trials/target) ===")
         best_cat = {}
         for t in TARGETS:
             y = train[t].values
             study = optuna.create_study(direction="minimize",
                                         sampler=optuna.samplers.TPESampler(seed=42))
-            study.optimize(make_objective(CAT_SEARCH, CAT_FIXED, fold_by_target[t], y),
+            study.optimize(make_objective("catboost", CAT_SEARCH, CAT_FIXED,
+                                          fold_by_target[t], y),
                            n_trials=N_TRIALS, show_progress_bar=False)
             bp = {**CAT_FIXED, **study.best_params}
             best_cat[t] = bp
@@ -247,54 +309,77 @@ def train_and_predict(train, test, parquet_feat):
         print()
         save_params(CAT_KEY, best_cat)
 
-    # ── Phase 2: 멀티 시드 예측 ───────────────────────────────────────────────
-    print(f"=== Phase 2: CatBoost 멀티 시드 ({n_seeds} seeds) ===")
-    print(f"{'시드':>6}  " + "  ".join(f"{t:>6}" for t in TARGETS) + "  평균F1   평균LL")
-    print("-" * (8 + 9 * len(TARGETS) + 16))
+    # ── Phase 2: 멀티 시드 OOF 축적 ──────────────────────────────────────────
+    print(f"=== Phase 2: 멀티 시드 OOF 축적 ({n_seeds} seeds) ===")
 
-    cat_oof  = {t: np.zeros(len(train)) for t in TARGETS}
-    cat_test = {t: np.zeros(len(test))  for t in TARGETS}
+    lgbm_oof  = {t: np.zeros(len(train)) for t in TARGETS}
+    lgbm_test = {t: np.zeros(len(test))  for t in TARGETS}
+    cat_oof   = {t: np.zeros(len(train)) for t in TARGETS}
+    cat_test  = {t: np.zeros(len(test))  for t in TARGETS}
 
     for seed_i, seed in enumerate(SEEDS):
-        seed_oof  = {t: np.zeros(len(train)) for t in TARGETS}
-        seed_test = {t: np.zeros(len(test))  for t in TARGETS}
-
         for t in TARGETS:
             y = train[t].values
-            params = {**best_cat[t], "random_seed": seed}
+            lgbm_params = {**best_lgbm[t], "random_state": seed}
+            cat_params  = {**best_cat[t],  "random_seed":  seed}
+
+            seed_lgbm_oof  = np.zeros(len(train))
+            seed_cat_oof   = np.zeros(len(train))
+            seed_lgbm_test = np.zeros(len(test))
+            seed_cat_test  = np.zeros(len(test))
 
             for tr_idx, val_idx, X_tr, X_val in fold_by_target[t]:
-                model = CatBoostClassifier(**params)
-                model.fit(X_tr, y[tr_idx])
-                seed_oof[t][val_idx]  = model.predict_proba(X_val)[:, 1]
-                seed_test[t]         += model.predict_proba(te_by_target[t])[:, 1] / cv.n_splits
+                lm = lgb.LGBMClassifier(**lgbm_params)
+                lm.fit(X_tr, y[tr_idx])
+                seed_lgbm_oof[val_idx]  = lm.predict_proba(X_val)[:, 1]
+                seed_lgbm_test         += lm.predict_proba(te_by_target[t])[:, 1] / cv.n_splits
 
-        for t in TARGETS:
-            cat_oof[t]  += seed_oof[t]  / n_seeds
-            cat_test[t] += seed_test[t] / n_seeds
+                cm = CatBoostClassifier(**cat_params)
+                cm.fit(X_tr, y[tr_idx])
+                seed_cat_oof[val_idx]  = cm.predict_proba(X_val)[:, 1]
+                seed_cat_test         += cm.predict_proba(te_by_target[t])[:, 1] / cv.n_splits
 
-        f1s, lls = [], []
-        for t in TARGETS:
-            cur = cat_oof[t] * n_seeds / (seed_i + 1)
-            f1s.append(f1_score(train[t].values, (cur > 0.5).astype(int)))
-            lls.append(log_loss(train[t].values, cur))
-        f1_str = "  ".join(f"{f:>6.3f}" for f in f1s)
-        print(f"{seed:>6}  {f1_str}  {np.mean(f1s):>6.3f}  {np.mean(lls):>6.4f}")
+            lgbm_oof[t]  += seed_lgbm_oof  / n_seeds
+            lgbm_test[t] += seed_lgbm_test / n_seeds
+            cat_oof[t]   += seed_cat_oof   / n_seeds
+            cat_test[t]  += seed_cat_test  / n_seeds
 
-    print()
-    print(f"{'타깃':<5}  {'F1':>8}  {'LogLoss':>9}  {'기준 F1':>7}")
-    print("-" * 36)
-    lls_all = []
+        print(f"  seed {seed} 완료 ({seed_i+1}/{n_seeds})")
+
+    # ── Phase 3: 타깃별 최적 α 탐색 ──────────────────────────────────────────
+    print(f"\n=== Phase 3: 타깃별 최적 α 탐색 (LGBM 비중, 0~1 그리드 21점) ===")
+    print(f"{'타깃':<5}  {'최적 α':>6}  {'LGBM%':>6}  {'CAT%':>5}  {'가중 LL':>8}  {'균등 LL':>8}  {'개선':>6}")
+    print("-" * 58)
+
+    best_alpha = {}
     for t in TARGETS:
-        f1  = f1_score(train[t].values, (cat_oof[t] > 0.5).astype(int))
-        ll  = log_loss(train[t].values, cat_oof[t])
-        lls_all.append(ll)
-        print(f"{t:<5}  {f1:>8.3f}  {ll:>9.4f}  {BASELINE_F1[t]:>7.3f}")
-    print(f"{'평균':<5}  {'':>8}  {np.mean(lls_all):>9.4f}")
+        y = train[t].values
+        a, weighted_ll = find_best_alpha(lgbm_oof[t], cat_oof[t], y)
+        equal_ll = log_loss(y, 0.5 * lgbm_oof[t] + 0.5 * cat_oof[t])
+        best_alpha[t] = a
+        print(f"{t:<5}  {a:>6.2f}  {a*100:>5.0f}%  {(1-a)*100:>4.0f}%  "
+              f"{weighted_ll:>8.4f}  {equal_ll:>8.4f}  {equal_ll-weighted_ll:>+6.4f}")
+
+    avg_weighted = np.mean([
+        log_loss(train[t].values, best_alpha[t]*lgbm_oof[t] + (1-best_alpha[t])*cat_oof[t])
+        for t in TARGETS
+    ])
+    avg_equal = np.mean([
+        log_loss(train[t].values, 0.5*lgbm_oof[t] + 0.5*cat_oof[t])
+        for t in TARGETS
+    ])
+    print(f"\n  균등 평균 OOF: {avg_equal:.4f}  →  가중 앙상블 OOF: {avg_weighted:.4f}  "
+          f"(개선: {avg_equal-avg_weighted:+.4f})")
+
+    # ── 최종 예측 ─────────────────────────────────────────────────────────────
+    ens_test = {
+        t: best_alpha[t] * lgbm_test[t] + (1 - best_alpha[t]) * cat_test[t]
+        for t in TARGETS
+    }
 
     result = test[["subject_id", "sleep_date", "lifelog_date"]].copy()
     for t in TARGETS:
-        result[t] = cat_test[t]
+        result[t] = ens_test[t]
     return result
 
 
@@ -306,21 +391,20 @@ def main():
     parquet_feat = build_parquet_features()
     print()
 
-    feat_count = 135 - len(DROP_USAGE)
-    print(f"=== CatBoost 단독 예측 ({N_TRIALS} trials, 피처 {feat_count}개) ===\n")
+    print("=== LGBM + CatBoost OOF 기반 가중 앙상블 ===\n")
     result = train_and_predict(train, sample, parquet_feat)
 
     result_prob = result[["subject_id", "sleep_date", "lifelog_date"]].copy()
     for t in TARGETS:
         result_prob[t] = result[t].clip(0.1, 0.9)
 
-    print("\n=== CatBoost 예측 분포 (clip 0.1~0.9) ===")
+    print("\n=== 가중 앙상블 예측 분포 (clip 0.1~0.9) ===")
     for t in TARGETS:
         print(f"  {t}: min={result_prob[t].min():.3f}, "
               f"mean={result_prob[t].mean():.3f}, "
               f"max={result_prob[t].max():.3f}")
 
-    out_path = SUBMISSION_DIR / "catboost_optuna_prob.csv"
+    out_path = SUBMISSION_DIR / "lgbm_catboost_weighted_prob.csv"
     result_prob.to_csv(out_path, index=False)
     print(f"\n저장 완료: {out_path}")
 

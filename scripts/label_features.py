@@ -1,5 +1,5 @@
 """
-lag1/lag2/lag7 + roll3/roll7/roll14/roll21/roll28 + rollstd7/rollstd14 피처 생성
+lag1/lag2/lag7 + roll3/7/14/21/28 + rollstd7/14 피처 생성
 - lag1: 전날 레이블 (date_diff <= 2인 경우만, 아니면 NaN)
 - lag2: 2일 전 레이블 (date_diff <= 2 연속 조건, 아니면 NaN)
 - lag7: 7일 전 레이블 (target-7일 ± 2일 이내 가장 가까운 값, 주간 패턴)

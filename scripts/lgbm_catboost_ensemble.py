@@ -20,6 +20,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).parent))
 from label_features import build_label_features
 from parquet_features_v2 import build_all as build_parquet_features
+from optuna_params_io import load_params, save_params
 
 optuna.logging.set_verbosity(optuna.logging.WARNING)
 
@@ -27,6 +28,9 @@ ROOT = Path(__file__).parent.parent
 DATA = ROOT / "data"
 SUBMISSION_DIR = ROOT / "submission"
 SUBMISSION_DIR.mkdir(exist_ok=True)
+
+LGBM_KEY = "lgbm_v2"
+CAT_KEY  = "catboost_v2"
 
 TARGETS  = ["Q1", "Q2", "Q3", "S1", "S2", "S3", "S4"]
 SEEDS    = [42, 123, 456, 789, 1024, 2024, 3141, 5678, 9999, 31415]
@@ -252,39 +256,59 @@ def train_and_predict(train, test, parquet_feat):
     )
     print(f"  완료 (피처 수: {fold_by_target[TARGETS[0]][0][2].shape[1]}개)\n")
 
-    # ── Phase 1-A: LGBM Optuna ───────────────────────────────────────────────
-    print(f"=== Phase 1-A: LGBM Optuna ({N_TRIALS} trials/target) ===")
-    best_lgbm = {}
-    for t in TARGETS:
-        y = train[t].values
-        study = optuna.create_study(direction="minimize",
-                                    sampler=optuna.samplers.TPESampler(seed=42))
-        study.optimize(make_objective("lgbm", LGBM_SEARCH, LGBM_FIXED,
-                                      fold_by_target[t], y),
-                       n_trials=N_TRIALS, show_progress_bar=False)
-        bp = {**LGBM_FIXED, **study.best_params}
-        best_lgbm[t] = bp
-        print(f"  {t}: LogLoss={study.best_value:.4f} | "
-              f"leaves={bp['num_leaves']}, lr={bp['learning_rate']:.4f}, "
-              f"n_est={bp['n_estimators']}")
-    print()
+    # ── Phase 1: Optuna 또는 캐시 로드 ──────────────────────────────────────
+    cached_lgbm = load_params(LGBM_KEY)
+    cached_cat  = load_params(CAT_KEY)
 
-    # ── Phase 1-B: CatBoost Optuna ───────────────────────────────────────────
-    print(f"=== Phase 1-B: CatBoost Optuna ({N_TRIALS} trials/target) ===")
-    best_cat = {}
-    for t in TARGETS:
-        y = train[t].values
-        study = optuna.create_study(direction="minimize",
-                                    sampler=optuna.samplers.TPESampler(seed=42))
-        study.optimize(make_objective("catboost", CAT_SEARCH, CAT_FIXED,
-                                      fold_by_target[t], y),
-                       n_trials=N_TRIALS, show_progress_bar=False)
-        bp = {**CAT_FIXED, **study.best_params}
-        best_cat[t] = bp
-        print(f"  {t}: LogLoss={study.best_value:.4f} | "
-              f"depth={bp['depth']}, lr={bp['learning_rate']:.4f}, "
-              f"iter={bp['iterations']}")
-    print()
+    if cached_lgbm:
+        print(f"=== Phase 1-A: 저장된 params 로드 ({LGBM_KEY}) ===")
+        best_lgbm = {t: cached_lgbm[t] for t in TARGETS}
+        for t in TARGETS:
+            bp = best_lgbm[t]
+            print(f"  {t}: leaves={bp['num_leaves']}, lr={bp['learning_rate']:.4f}, n_est={bp['n_estimators']}")
+        print()
+    else:
+        print(f"=== Phase 1-A: LGBM Optuna ({N_TRIALS} trials/target) ===")
+        best_lgbm = {}
+        for t in TARGETS:
+            y = train[t].values
+            study = optuna.create_study(direction="minimize",
+                                        sampler=optuna.samplers.TPESampler(seed=42))
+            study.optimize(make_objective("lgbm", LGBM_SEARCH, LGBM_FIXED,
+                                          fold_by_target[t], y),
+                           n_trials=N_TRIALS, show_progress_bar=False)
+            bp = {**LGBM_FIXED, **study.best_params}
+            best_lgbm[t] = bp
+            print(f"  {t}: LogLoss={study.best_value:.4f} | "
+                  f"leaves={bp['num_leaves']}, lr={bp['learning_rate']:.4f}, "
+                  f"n_est={bp['n_estimators']}")
+        print()
+        save_params(LGBM_KEY, best_lgbm)
+
+    if cached_cat:
+        print(f"=== Phase 1-B: 저장된 params 로드 ({CAT_KEY}) ===")
+        best_cat = {t: cached_cat[t] for t in TARGETS}
+        for t in TARGETS:
+            bp = best_cat[t]
+            print(f"  {t}: depth={bp['depth']}, lr={bp['learning_rate']:.4f}, iter={bp['iterations']}")
+        print()
+    else:
+        print(f"=== Phase 1-B: CatBoost Optuna ({N_TRIALS} trials/target) ===")
+        best_cat = {}
+        for t in TARGETS:
+            y = train[t].values
+            study = optuna.create_study(direction="minimize",
+                                        sampler=optuna.samplers.TPESampler(seed=42))
+            study.optimize(make_objective("catboost", CAT_SEARCH, CAT_FIXED,
+                                          fold_by_target[t], y),
+                           n_trials=N_TRIALS, show_progress_bar=False)
+            bp = {**CAT_FIXED, **study.best_params}
+            best_cat[t] = bp
+            print(f"  {t}: LogLoss={study.best_value:.4f} | "
+                  f"depth={bp['depth']}, lr={bp['learning_rate']:.4f}, "
+                  f"iter={bp['iterations']}")
+        print()
+        save_params(CAT_KEY, best_cat)
 
     # ── Phase 2: 멀티 시드 앙상블 예측 ───────────────────────────────────────
     print(f"=== Phase 2: LGBM+CatBoost 앙상블 ({n_seeds} seeds) ===")

@@ -1,14 +1,14 @@
 """
-CatBoost 단독 예측
-- 타깃별 독립 Optuna 30 trials
-- best_params + 10 seeds 예측
-- mUsageStats 전체 제거 (원본 lgbm_optuna_prob 0.6178 기준 재현)
-출력: submission/catboost_optuna_prob.csv (clip 0.1~0.9)
+ExtraTreesClassifier 단독 앙상블
+- extratrees_v2 캐시 params 로드 (또는 Optuna 30 trials 탐색)
+- 10 seeds 멀티 시드 앙상블
+- NaN → fold별 train median imputation
+출력: submission/extratrees_ensemble_prob.csv (clip 0.1~0.9)
 """
 
 import numpy as np
 import pandas as pd
-from catboost import CatBoostClassifier
+from sklearn.ensemble import ExtraTreesClassifier
 import optuna
 from pathlib import Path
 from sklearn.model_selection import GroupKFold
@@ -28,11 +28,11 @@ DATA = ROOT / "data"
 SUBMISSION_DIR = ROOT / "submission"
 SUBMISSION_DIR.mkdir(exist_ok=True)
 
-CAT_KEY = "catboost_v2"
+ET_KEY   = "extratrees_v2"
+N_TRIALS = 100
 
 TARGETS  = ["Q1", "Q2", "Q3", "S1", "S2", "S3", "S4"]
 SEEDS    = [42, 123, 456, 789, 1024, 2024, 3141, 5678, 9999, 31415]
-N_TRIALS = 30
 
 BASELINE_F1 = {
     "Q1": 0.649, "Q2": 0.662, "Q3": 0.712,
@@ -47,17 +47,17 @@ DROP_USAGE = [
     "usage_presleep_ratio", "usage_sleep_ratio",
 ]
 
-CAT_SEARCH = {
-    "iterations":          ("int",   100,  500),
-    "depth":               ("int",   3,    8),
-    "learning_rate":       ("float", 0.01, 0.3,  {"log": True}),
-    "l2_leaf_reg":         ("float", 1e-8, 10.0, {"log": True}),
-    "random_strength":     ("float", 1e-8, 10.0, {"log": True}),
-    "bagging_temperature": ("float", 0.0,  1.0),
+ET_SEARCH = {
+    "n_estimators":      ("int",   100,  600),
+    "max_depth":         ("int",   3,    20),
+    "min_samples_split": ("int",   2,    20),
+    "min_samples_leaf":  ("int",   1,    10),
+    "max_features":      ("float", 0.1,  1.0),
 }
-CAT_FIXED = {
-    "loss_function": "Logloss", "eval_metric": "Logloss",
-    "verbose": 0, "random_seed": 42, "task_type": "CPU",
+ET_FIXED = {
+    "criterion":    "entropy",
+    "n_jobs":       -1,
+    "random_state": 42,
 }
 
 
@@ -167,7 +167,7 @@ def precompute_fold_features(train, test, parquet_feat, le, sensor_cols,
     return fold_by_target, te_by_target
 
 
-def make_objective(search_space, fixed_params, fold_features_t, y):
+def make_et_objective(search_space, fixed_params, fold_features_t, y):
     def objective(trial):
         params = {**fixed_params}
         for name, spec in search_space.items():
@@ -175,14 +175,19 @@ def make_objective(search_space, fixed_params, fold_features_t, y):
             kwargs = spec[3] if len(spec) > 3 else {}
             if kind == "int":
                 params[name] = trial.suggest_int(name, spec[1], spec[2], **kwargs)
-            else:
+            elif kind == "float":
                 params[name] = trial.suggest_float(name, spec[1], spec[2], **kwargs)
+            elif kind == "categorical":
+                params[name] = trial.suggest_categorical(name, spec[1])
 
         oof = np.zeros(len(y))
         for tr_idx, val_idx, X_tr, X_val in fold_features_t:
-            model = CatBoostClassifier(**params)
-            model.fit(X_tr, y[tr_idx])
-            oof[val_idx] = model.predict_proba(X_val)[:, 1]
+            tr_median    = X_tr.median()
+            X_tr_filled  = X_tr.fillna(tr_median)
+            X_val_filled = X_val.fillna(tr_median)
+            model = ExtraTreesClassifier(**params)
+            model.fit(X_tr_filled, y[tr_idx])
+            oof[val_idx] = model.predict_proba(X_val_filled)[:, 1]
         return log_loss(y, oof)
 
     return objective
@@ -220,81 +225,86 @@ def train_and_predict(train, test, parquet_feat):
     )
     print(f"  완료 (피처 수: {fold_by_target[TARGETS[0]][0][2].shape[1]}개)\n")
 
-    # ── Phase 1: Optuna 또는 캐시 로드 ──────────────────────────────────────
-    cached_cat = load_params(CAT_KEY)
-
-    if cached_cat:
-        print(f"=== Phase 1: 저장된 params 로드 ({CAT_KEY}) ===")
-        best_cat = {t: cached_cat[t] for t in TARGETS}
+    # ── Phase 1: 캐시 로드 또는 Optuna 탐색 ─────────────────────────────────
+    cached_et = load_params(ET_KEY)
+    if cached_et:
+        print(f"=== Phase 1: 저장된 params 로드 ({ET_KEY}) ===")
+        best_et = {t: cached_et[t] for t in TARGETS}
         for t in TARGETS:
-            bp = best_cat[t]
-            print(f"  {t}: depth={bp['depth']}, lr={bp['learning_rate']:.4f}, iter={bp['iterations']}")
+            bp = best_et[t]
+            print(f"  {t}: n_est={bp['n_estimators']}, depth={bp['max_depth']}, "
+                  f"max_feat={bp['max_features']:.2f}")
         print()
     else:
-        print(f"=== Phase 1: CatBoost Optuna ({N_TRIALS} trials/target) ===")
-        best_cat = {}
+        print(f"=== Phase 1: ExtraTrees Optuna ({N_TRIALS} trials/target) ===")
+        best_et = {}
         for t in TARGETS:
             y = train[t].values
             study = optuna.create_study(direction="minimize",
                                         sampler=optuna.samplers.TPESampler(seed=42))
-            study.optimize(make_objective(CAT_SEARCH, CAT_FIXED, fold_by_target[t], y),
+            study.optimize(make_et_objective(ET_SEARCH, ET_FIXED, fold_by_target[t], y),
                            n_trials=N_TRIALS, show_progress_bar=False)
-            bp = {**CAT_FIXED, **study.best_params}
-            best_cat[t] = bp
+            bp = {**ET_FIXED, **study.best_params}
+            best_et[t] = bp
             print(f"  {t}: LogLoss={study.best_value:.4f} | "
-                  f"depth={bp['depth']}, lr={bp['learning_rate']:.4f}, "
-                  f"iter={bp['iterations']}")
+                  f"n_est={bp['n_estimators']}, depth={bp['max_depth']}, "
+                  f"max_feat={bp['max_features']:.2f}")
         print()
-        save_params(CAT_KEY, best_cat)
+        save_params(ET_KEY, best_et)
 
-    # ── Phase 2: 멀티 시드 예측 ───────────────────────────────────────────────
-    print(f"=== Phase 2: CatBoost 멀티 시드 ({n_seeds} seeds) ===")
+    # ── Phase 2: 멀티 시드 예측 ──────────────────────────────────────────────
+    print(f"=== Phase 2: ExtraTrees 앙상블 ({n_seeds} seeds) ===")
     print(f"{'시드':>6}  " + "  ".join(f"{t:>6}" for t in TARGETS) + "  평균F1   평균LL")
     print("-" * (8 + 9 * len(TARGETS) + 16))
 
-    cat_oof  = {t: np.zeros(len(train)) for t in TARGETS}
-    cat_test = {t: np.zeros(len(test))  for t in TARGETS}
+    et_oof  = {t: np.zeros(len(train)) for t in TARGETS}
+    et_test = {t: np.zeros(len(test))  for t in TARGETS}
 
     for seed_i, seed in enumerate(SEEDS):
-        seed_oof  = {t: np.zeros(len(train)) for t in TARGETS}
-        seed_test = {t: np.zeros(len(test))  for t in TARGETS}
+        seed_et_oof  = {t: np.zeros(len(train)) for t in TARGETS}
+        seed_et_test = {t: np.zeros(len(test))  for t in TARGETS}
 
         for t in TARGETS:
             y = train[t].values
-            params = {**best_cat[t], "random_seed": seed}
+            et_params = {**best_et[t], "random_state": seed}
 
             for tr_idx, val_idx, X_tr, X_val in fold_by_target[t]:
-                model = CatBoostClassifier(**params)
-                model.fit(X_tr, y[tr_idx])
-                seed_oof[t][val_idx]  = model.predict_proba(X_val)[:, 1]
-                seed_test[t]         += model.predict_proba(te_by_target[t])[:, 1] / cv.n_splits
+                tr_median    = X_tr.median()
+                X_tr_filled  = X_tr.fillna(tr_median)
+                X_val_filled = X_val.fillna(tr_median)
+                X_te_filled  = te_by_target[t].fillna(tr_median)
+
+                em = ExtraTreesClassifier(**et_params)
+                em.fit(X_tr_filled, y[tr_idx])
+                seed_et_oof[t][val_idx]  = em.predict_proba(X_val_filled)[:, 1]
+                seed_et_test[t]         += em.predict_proba(X_te_filled)[:, 1] / cv.n_splits
 
         for t in TARGETS:
-            cat_oof[t]  += seed_oof[t]  / n_seeds
-            cat_test[t] += seed_test[t] / n_seeds
+            et_oof[t]  += seed_et_oof[t]  / n_seeds
+            et_test[t] += seed_et_test[t] / n_seeds
 
         f1s, lls = [], []
         for t in TARGETS:
-            cur = cat_oof[t] * n_seeds / (seed_i + 1)
+            cur = et_oof[t] * n_seeds / (seed_i + 1)
             f1s.append(f1_score(train[t].values, (cur > 0.5).astype(int)))
             lls.append(log_loss(train[t].values, cur))
         f1_str = "  ".join(f"{f:>6.3f}" for f in f1s)
         print(f"{seed:>6}  {f1_str}  {np.mean(f1s):>6.3f}  {np.mean(lls):>6.4f}")
 
     print()
-    print(f"{'타깃':<5}  {'F1':>8}  {'LogLoss':>9}  {'기준 F1':>7}")
-    print("-" * 36)
-    lls_all = []
+    print(f"{'타깃':<5}  {'F1':>6}  {'OOF LL':>8}  {'기준 F1':>7}")
+    print("-" * 32)
     for t in TARGETS:
-        f1  = f1_score(train[t].values, (cat_oof[t] > 0.5).astype(int))
-        ll  = log_loss(train[t].values, cat_oof[t])
-        lls_all.append(ll)
-        print(f"{t:<5}  {f1:>8.3f}  {ll:>9.4f}  {BASELINE_F1[t]:>7.3f}")
-    print(f"{'평균':<5}  {'':>8}  {np.mean(lls_all):>9.4f}")
+        f1 = f1_score(train[t].values, (et_oof[t] > 0.5).astype(int))
+        ll = log_loss(train[t].values, et_oof[t])
+        print(f"{t:<5}  {f1:>6.3f}  {ll:>8.4f}  {BASELINE_F1[t]:>7.3f}")
+    avg_ll = np.mean([log_loss(train[t].values, et_oof[t]) for t in TARGETS])
+    avg_f1 = np.mean([f1_score(train[t].values, (et_oof[t] > 0.5).astype(int)) for t in TARGETS])
+    print(f"{'평균':<5}  {avg_f1:>6.3f}  {avg_ll:>8.4f}")
 
     result = test[["subject_id", "sleep_date", "lifelog_date"]].copy()
     for t in TARGETS:
-        result[t] = cat_test[t]
+        result[t] = et_test[t]
     return result
 
 
@@ -306,21 +316,20 @@ def main():
     parquet_feat = build_parquet_features()
     print()
 
-    feat_count = 135 - len(DROP_USAGE)
-    print(f"=== CatBoost 단독 예측 ({N_TRIALS} trials, 피처 {feat_count}개) ===\n")
+    print(f"=== ExtraTrees 단독 앙상블 ({N_TRIALS} trials) ===\n")
     result = train_and_predict(train, sample, parquet_feat)
 
     result_prob = result[["subject_id", "sleep_date", "lifelog_date"]].copy()
     for t in TARGETS:
         result_prob[t] = result[t].clip(0.1, 0.9)
 
-    print("\n=== CatBoost 예측 분포 (clip 0.1~0.9) ===")
+    print("\n=== ExtraTrees 예측 분포 (clip 0.1~0.9) ===")
     for t in TARGETS:
         print(f"  {t}: min={result_prob[t].min():.3f}, "
               f"mean={result_prob[t].mean():.3f}, "
               f"max={result_prob[t].max():.3f}")
 
-    out_path = SUBMISSION_DIR / "catboost_optuna_prob.csv"
+    out_path = SUBMISSION_DIR / "extratrees_ensemble_prob.csv"
     result_prob.to_csv(out_path, index=False)
     print(f"\n저장 완료: {out_path}")
 

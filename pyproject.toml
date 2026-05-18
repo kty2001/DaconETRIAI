@@ -14,6 +14,7 @@ dependencies = [
     "optuna>=4.8.0",
     "shap>=0.51.0",
     "matplotlib>=3.10.9",
+    "torch",
 ]
 
 [tool.uv]
