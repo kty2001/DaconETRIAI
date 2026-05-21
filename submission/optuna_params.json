@@ -930,5 +930,783 @@
       "max_features": 0.06994803400624028,
       "random_state": 42
     }
+  },
+  "extratrees_v4": {
+    "Q1": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "n_estimators": 300,
+      "max_depth": 5,
+      "min_samples_split": 10,
+      "min_samples_leaf": 4,
+      "max_features": 0.24939127951700088,
+      "random_state": 42
+    },
+    "Q2": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "n_estimators": 850,
+      "max_depth": 23,
+      "min_samples_split": 7,
+      "min_samples_leaf": 5,
+      "max_features": 0.1735245087983245,
+      "random_state": 42
+    },
+    "Q3": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "n_estimators": 650,
+      "max_depth": 5,
+      "min_samples_split": 7,
+      "min_samples_leaf": 4,
+      "max_features": 0.26879602034223893,
+      "random_state": 42
+    },
+    "S1": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "n_estimators": 700,
+      "max_depth": 7,
+      "min_samples_split": 4,
+      "min_samples_leaf": 2,
+      "max_features": 0.11297444161010305,
+      "random_state": 42
+    },
+    "S2": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "n_estimators": 1350,
+      "max_depth": 6,
+      "min_samples_split": 7,
+      "min_samples_leaf": 5,
+      "max_features": 0.10723154293765728,
+      "random_state": 42
+    },
+    "S3": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "n_estimators": 250,
+      "max_depth": 14,
+      "min_samples_split": 5,
+      "min_samples_leaf": 5,
+      "max_features": 0.14143896148525809,
+      "random_state": 42
+    },
+    "S4": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "n_estimators": 1500,
+      "max_depth": 5,
+      "min_samples_split": 7,
+      "min_samples_leaf": 2,
+      "max_features": 0.12644254537323438,
+      "random_state": 42
+    }
+  },
+  "extratrees_gps": {
+    "Q1": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 1200,
+      "max_depth": 11,
+      "min_samples_split": 20,
+      "min_samples_leaf": 10,
+      "max_features": 0.07089616600198162
+    },
+    "Q2": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 450,
+      "max_depth": 25,
+      "min_samples_split": 6,
+      "min_samples_leaf": 8,
+      "max_features": 0.2626131906300461
+    },
+    "Q3": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 300,
+      "max_depth": 4,
+      "min_samples_split": 16,
+      "min_samples_leaf": 10,
+      "max_features": 0.4129139488297099
+    },
+    "S1": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 500,
+      "max_depth": 11,
+      "min_samples_split": 13,
+      "min_samples_leaf": 10,
+      "max_features": 0.08900814211944232
+    },
+    "S2": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 1250,
+      "max_depth": 4,
+      "min_samples_split": 7,
+      "min_samples_leaf": 9,
+      "max_features": 0.12676972436039333
+    },
+    "S3": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 250,
+      "max_depth": 11,
+      "min_samples_split": 18,
+      "min_samples_leaf": 6,
+      "max_features": 0.07272402732206941
+    },
+    "S4": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 200,
+      "max_depth": 19,
+      "min_samples_split": 17,
+      "min_samples_leaf": 7,
+      "max_features": 0.07609094035628418
+    }
+  },
+  "anchor_stage1": {
+    "Q1": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "n_estimators": 550,
+      "max_depth": 3,
+      "max_features": 0.2655347283108714,
+      "random_state": 42
+    },
+    "Q2": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "n_estimators": 1350,
+      "max_depth": 3,
+      "max_features": 0.4320201617215988,
+      "random_state": 42
+    },
+    "Q3": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "n_estimators": 450,
+      "max_depth": 3,
+      "max_features": 0.4414682434557025,
+      "random_state": 42
+    },
+    "S1": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "n_estimators": 250,
+      "max_depth": 17,
+      "max_features": 0.05164382373153065,
+      "random_state": 42
+    },
+    "S2": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "n_estimators": 1350,
+      "max_depth": 5,
+      "max_features": 0.06873465681007185,
+      "random_state": 42
+    },
+    "S3": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "n_estimators": 350,
+      "max_depth": 9,
+      "max_features": 0.2148628294821613,
+      "random_state": 42
+    },
+    "S4": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "n_estimators": 1450,
+      "max_depth": 3,
+      "max_features": 0.35407464111599973,
+      "random_state": 42
+    }
+  },
+  "extratrees_gps_wlight": {
+    "Q1": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 250,
+      "max_depth": 12,
+      "min_samples_split": 16,
+      "min_samples_leaf": 10,
+      "max_features": 0.06658271037213334
+    },
+    "Q2": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 250,
+      "max_depth": 24,
+      "min_samples_split": 18,
+      "min_samples_leaf": 10,
+      "max_features": 0.3152372311128912
+    },
+    "Q3": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 1250,
+      "max_depth": 5,
+      "min_samples_split": 16,
+      "min_samples_leaf": 10,
+      "max_features": 0.3062671388549478
+    },
+    "S1": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 700,
+      "max_depth": 20,
+      "min_samples_split": 20,
+      "min_samples_leaf": 9,
+      "max_features": 0.05433704808410557
+    },
+    "S2": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 700,
+      "max_depth": 5,
+      "min_samples_split": 7,
+      "min_samples_leaf": 10,
+      "max_features": 0.22004299083559578
+    },
+    "S3": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 200,
+      "max_depth": 12,
+      "min_samples_split": 5,
+      "min_samples_leaf": 8,
+      "max_features": 0.11160924872694702
+    },
+    "S4": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 850,
+      "max_depth": 3,
+      "min_samples_split": 15,
+      "min_samples_leaf": 8,
+      "max_features": 0.3101736717978557
+    }
+  },
+  "extratrees_gps_slim": {
+    "Q1": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 600,
+      "max_depth": 20,
+      "min_samples_split": 8,
+      "min_samples_leaf": 9,
+      "max_features": 0.06850595577708589
+    },
+    "Q2": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 300,
+      "max_depth": 8,
+      "min_samples_split": 17,
+      "min_samples_leaf": 7,
+      "max_features": 0.24118266121863718
+    },
+    "Q3": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 350,
+      "max_depth": 3,
+      "min_samples_split": 18,
+      "min_samples_leaf": 10,
+      "max_features": 0.3879487562056365
+    },
+    "S1": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 250,
+      "max_depth": 19,
+      "min_samples_split": 10,
+      "min_samples_leaf": 10,
+      "max_features": 0.1146555557746124
+    },
+    "S2": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 750,
+      "max_depth": 6,
+      "min_samples_split": 5,
+      "min_samples_leaf": 8,
+      "max_features": 0.0826107115381105
+    },
+    "S3": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 1150,
+      "max_depth": 20,
+      "min_samples_split": 14,
+      "min_samples_leaf": 7,
+      "max_features": 0.16500649279020918
+    },
+    "S4": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 200,
+      "max_depth": 4,
+      "min_samples_split": 16,
+      "min_samples_leaf": 9,
+      "max_features": 0.39079164476451217
+    }
+  },
+  "extratrees_gps_mble": {
+    "Q1": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 1500,
+      "max_depth": 13,
+      "min_samples_split": 7,
+      "min_samples_leaf": 10,
+      "max_features": 0.06928088491233066
+    },
+    "Q2": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 1500,
+      "max_depth": 24,
+      "min_samples_split": 6,
+      "min_samples_leaf": 10,
+      "max_features": 0.4994382929336347
+    },
+    "Q3": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 200,
+      "max_depth": 19,
+      "min_samples_split": 16,
+      "min_samples_leaf": 9,
+      "max_features": 0.18199892773021134
+    },
+    "S1": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 800,
+      "max_depth": 20,
+      "min_samples_split": 12,
+      "min_samples_leaf": 6,
+      "max_features": 0.05169943941990679
+    },
+    "S2": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 350,
+      "max_depth": 25,
+      "min_samples_split": 7,
+      "min_samples_leaf": 9,
+      "max_features": 0.06969346238009114
+    },
+    "S3": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 350,
+      "max_depth": 14,
+      "min_samples_split": 2,
+      "min_samples_leaf": 10,
+      "max_features": 0.1664509917200076
+    },
+    "S4": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 1350,
+      "max_depth": 3,
+      "min_samples_split": 13,
+      "min_samples_leaf": 1,
+      "max_features": 0.34986729369411584
+    }
+  },
+  "extratrees_v3gps_slim": {
+    "Q1": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 350,
+      "max_depth": 3,
+      "min_samples_split": 18,
+      "min_samples_leaf": 3,
+      "max_features": 0.1563847929374701
+    },
+    "Q2": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 1250,
+      "max_depth": 17,
+      "min_samples_split": 10,
+      "min_samples_leaf": 9,
+      "max_features": 0.3676632820436526
+    },
+    "Q3": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 250,
+      "max_depth": 3,
+      "min_samples_split": 19,
+      "min_samples_leaf": 9,
+      "max_features": 0.3054746447807885
+    },
+    "S1": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 1200,
+      "max_depth": 21,
+      "min_samples_split": 10,
+      "min_samples_leaf": 3,
+      "max_features": 0.05022035105020775
+    },
+    "S2": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 1200,
+      "max_depth": 16,
+      "min_samples_split": 15,
+      "min_samples_leaf": 8,
+      "max_features": 0.10003314673595613
+    },
+    "S3": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 250,
+      "max_depth": 14,
+      "min_samples_split": 8,
+      "min_samples_leaf": 8,
+      "max_features": 0.13487518341054894
+    },
+    "S4": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 1300,
+      "max_depth": 10,
+      "min_samples_split": 20,
+      "min_samples_leaf": 9,
+      "max_features": 0.10706420287114878
+    }
+  },
+  "extratrees_gps_slim85": {
+    "Q1": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 300,
+      "max_depth": 15,
+      "min_samples_split": 15,
+      "min_samples_leaf": 10,
+      "max_features": 0.08827148649309752
+    },
+    "Q2": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 1150,
+      "max_depth": 9,
+      "min_samples_split": 19,
+      "min_samples_leaf": 9,
+      "max_features": 0.3068959306703698
+    },
+    "Q3": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 200,
+      "max_depth": 4,
+      "min_samples_split": 3,
+      "min_samples_leaf": 10,
+      "max_features": 0.4137405044630285
+    },
+    "S1": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 800,
+      "max_depth": 11,
+      "min_samples_split": 10,
+      "min_samples_leaf": 9,
+      "max_features": 0.08568378677755752
+    },
+    "S2": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 1100,
+      "max_depth": 5,
+      "min_samples_split": 17,
+      "min_samples_leaf": 7,
+      "max_features": 0.1584137350844507
+    },
+    "S3": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 700,
+      "max_depth": 19,
+      "min_samples_split": 12,
+      "min_samples_leaf": 8,
+      "max_features": 0.11369990047573905
+    },
+    "S4": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 1200,
+      "max_depth": 3,
+      "min_samples_split": 20,
+      "min_samples_leaf": 10,
+      "max_features": 0.41655465189716406
+    }
+  },
+  "extratrees_gps_slim80": {
+    "Q1": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 500,
+      "max_depth": 15,
+      "min_samples_split": 5,
+      "min_samples_leaf": 8,
+      "max_features": 0.06330675086040183
+    },
+    "Q2": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 750,
+      "max_depth": 22,
+      "min_samples_split": 16,
+      "min_samples_leaf": 6,
+      "max_features": 0.3805702704521331
+    },
+    "Q3": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 200,
+      "max_depth": 5,
+      "min_samples_split": 17,
+      "min_samples_leaf": 9,
+      "max_features": 0.3673848432997569
+    },
+    "S1": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 300,
+      "max_depth": 16,
+      "min_samples_split": 8,
+      "min_samples_leaf": 10,
+      "max_features": 0.1062797821747284
+    },
+    "S2": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 1100,
+      "max_depth": 7,
+      "min_samples_split": 12,
+      "min_samples_leaf": 7,
+      "max_features": 0.11958117295953868
+    },
+    "S3": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 200,
+      "max_depth": 10,
+      "min_samples_split": 15,
+      "min_samples_leaf": 5,
+      "max_features": 0.11314572808610754
+    },
+    "S4": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 250,
+      "max_depth": 21,
+      "min_samples_split": 19,
+      "min_samples_leaf": 5,
+      "max_features": 0.08795041797991525
+    }
+  },
+  "extratrees_gps_pertarget_slim": {
+    "Q1": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 400,
+      "max_depth": 23,
+      "min_samples_split": 20,
+      "min_samples_leaf": 8,
+      "max_features": 0.0948445233434471
+    },
+    "Q2": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 250,
+      "max_depth": 11,
+      "min_samples_split": 18,
+      "min_samples_leaf": 5,
+      "max_features": 0.22310106803858018
+    },
+    "Q3": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 1500,
+      "max_depth": 19,
+      "min_samples_split": 18,
+      "min_samples_leaf": 4,
+      "max_features": 0.29480264167968595
+    },
+    "S1": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 950,
+      "max_depth": 11,
+      "min_samples_split": 17,
+      "min_samples_leaf": 3,
+      "max_features": 0.06893309336332387
+    },
+    "S2": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 1400,
+      "max_depth": 22,
+      "min_samples_split": 9,
+      "min_samples_leaf": 8,
+      "max_features": 0.07200774129184248
+    },
+    "S3": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 300,
+      "max_depth": 9,
+      "min_samples_split": 16,
+      "min_samples_leaf": 8,
+      "max_features": 0.09735076001076427
+    },
+    "S4": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 700,
+      "max_depth": 3,
+      "min_samples_split": 9,
+      "min_samples_leaf": 4,
+      "max_features": 0.4162015031084396
+    }
+  },
+  "extratrees_gps_slim75": {
+    "Q1": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 600,
+      "max_depth": 24,
+      "min_samples_split": 3,
+      "min_samples_leaf": 9,
+      "max_features": 0.05172857742151446
+    },
+    "Q2": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 650,
+      "max_depth": 7,
+      "min_samples_split": 9,
+      "min_samples_leaf": 7,
+      "max_features": 0.4736891625703936
+    },
+    "Q3": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 700,
+      "max_depth": 5,
+      "min_samples_split": 11,
+      "min_samples_leaf": 6,
+      "max_features": 0.21506136479722437
+    },
+    "S1": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 250,
+      "max_depth": 11,
+      "min_samples_split": 8,
+      "min_samples_leaf": 9,
+      "max_features": 0.07960875956718938
+    },
+    "S2": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 200,
+      "max_depth": 8,
+      "min_samples_split": 11,
+      "min_samples_leaf": 7,
+      "max_features": 0.06325729928749158
+    },
+    "S3": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 250,
+      "max_depth": 24,
+      "min_samples_split": 14,
+      "min_samples_leaf": 4,
+      "max_features": 0.17888250828350044
+    },
+    "S4": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 700,
+      "max_depth": 3,
+      "min_samples_split": 18,
+      "min_samples_leaf": 9,
+      "max_features": 0.3147902733576097
+    }
   }
 }

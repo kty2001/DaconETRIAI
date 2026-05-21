@@ -106,6 +106,15 @@ def build_label_features(
             feat[f"rollstd7_{t}"]  = float(np.std(recent[-7:],    ddof=0)) if len(recent)   >= 2 else np.nan
             feat[f"rollstd14_{t}"] = float(np.std(recent14[-14:], ddof=0)) if len(recent14) >= 2 else np.nan
 
+            # window pair trend: 단기/중기/장기 모멘텀
+            r3  = feat[f"roll3_{t}"]
+            r7  = feat[f"roll7_{t}"]
+            l1  = feat[f"lag1_{t}"]
+            r28 = feat[f"roll28_{t}"]
+            feat[f"trend_short_{t}"] = float(r3 - r7)  if not (np.isnan(r3)  or np.isnan(r7))  else np.nan
+            feat[f"trend_l1r7_{t}"]  = float(l1 - r7)  if not (np.isnan(l1)  or np.isnan(r7))  else np.nan
+            feat[f"trend_long_{t}"]  = float(r7 - r28) if not (np.isnan(r7)  or np.isnan(r28)) else np.nan
+
         result_rows.append(feat)
 
     return pd.DataFrame(result_rows)
