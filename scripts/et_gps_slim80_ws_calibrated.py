@@ -1,0 +1,590 @@
+"""
+ET GPS Slim 80% + Within-Subject Temporal Hold-out 보정
+
+기존 LOSO OOF 기반 보정의 한계:
+  LOSO OOF = 모델이 해당 피험자를 모르는 상태의 예측
+  그러나 실제 test 예측의 9/10은 해당 피험자를 학습에 포함한 상태 -> 과보정 위험
+
+개선:
+  각 피험자의 날짜를 시간 순 정렬 후 앞 70% 훈련 / 뒤 30% hold-out
+  훈련셋 = 다른 9명 전체 + 해당 피험자 앞 70%
+  -> 모델이 피험자를 알고 있는 상태에서의 예측 = 실제 test와 유사한 조건
+
+흐름:
+  Phase 0: Feature Importance (캐시 재사용)
+  Phase 1: Optuna params 로드 (캐시 재사용)
+  Phase 2: 10-seed LOSO 앙상블 -> et_oof, et_test
+  Phase 3: Within-subject 70/30 hold-out -> ws_oof (보정 데이터)
+  Phase 4: ws_oof 기반 logit bias 추정 + LOSO bias 비교
+  Phase 5: bias를 et_test에 적용 -> 저장
+
+출력: submission/et_gps_slim80_ws_calibrated_prob.csv
+"""
+
+import numpy as np
+import pandas as pd
+from sklearn.ensemble import ExtraTreesClassifier
+from sklearn.model_selection import GroupKFold
+from sklearn.metrics import log_loss
+from sklearn.preprocessing import LabelEncoder
+from scipy.optimize import minimize_scalar
+from scipy.special import logit as logit_fn, expit as expit_fn
+from pathlib import Path
+from functools import reduce
+
+import sys
+sys.path.insert(0, str(Path(__file__).parent))
+from label_features import build_label_features
+from parquet_features_v2 import build_all as build_parquet_features
+from gps_features import build_gps
+from optuna_params_io import load_params
+
+ROOT = Path(__file__).parent.parent
+DATA = ROOT / "data"
+SUBMISSION_DIR = ROOT / "submission"
+SUBMISSION_DIR.mkdir(exist_ok=True)
+
+ET_KEY_GPS  = "extratrees_gps"
+ET_KEY_SLIM = "extratrees_gps_slim80"
+IMP_COVERAGE = 0.80
+
+TARGETS = ["Q1", "Q2", "Q3", "S1", "S2", "S3", "S4"]
+SEEDS   = [42, 123, 456, 789, 1024, 2024, 3141, 5678, 9999, 31415]
+WS_SEEDS = [42, 123, 456]   # within-subject 보정 데이터 생성용 시드
+WS_HOLDOUT_RATIO = 0.30     # 각 피험자 최신 날짜의 hold-out 비율
+
+CALIB_REG  = 0.5
+BIAS_BOUND = 2.0
+
+DROP_USAGE = [
+    "usage_ms_morning", "usage_ms_afternoon", "usage_ms_evening",
+    "usage_ms_presleep", "usage_ms_sleep", "usage_ms_total",
+    "usage_apps_morning", "usage_apps_afternoon", "usage_apps_evening",
+    "usage_apps_presleep", "usage_apps_sleep",
+    "usage_presleep_ratio", "usage_sleep_ratio",
+]
+
+ET_FIXED = {
+    "criterion":    "entropy",
+    "n_jobs":       -1,
+    "random_state": 42,
+}
+
+
+# ──────────────────────────────────────────────
+# 피처 빌드 유틸 (slim80과 동일)
+# ──────────────────────────────────────────────
+
+def get_sensor_cols(parquet_feat):
+    return [c for c in parquet_feat.columns if c not in ("subject_id", "date")]
+
+
+def compute_subj_stats(subject_ids, X, sensor_cols):
+    avail = [c for c in sensor_cols if c in X.columns]
+    tmp = X[avail].copy()
+    tmp["subject_id"] = subject_ids.values
+    return tmp.groupby("subject_id")[avail].agg(["mean", "std"])
+
+
+def apply_zscore(subject_ids, X, stats, sensor_cols):
+    X = X.copy()
+    for col in sensor_cols:
+        if col not in X.columns or (col, "mean") not in stats.columns:
+            continue
+        means = subject_ids.map(stats[(col, "mean")])
+        stds  = subject_ids.map(stats[(col, "std")])
+        valid = stds.notna() & (stds > 0)
+        X[col] = X[col].astype(float)
+        X.loc[valid, col] = (X.loc[valid, col] - means[valid]) / stds[valid]
+    return X
+
+
+def add_date_features(df):
+    dt = pd.to_datetime(df["sleep_date"])
+    df = df.copy()
+    df["day_of_week"]  = dt.dt.dayofweek
+    df["month"]        = dt.dt.month
+    df["day_of_month"] = dt.dt.day
+    df["is_weekend"]   = (dt.dt.dayofweek >= 5).astype(int)
+    df["week_of_year"] = dt.dt.isocalendar().week.astype(int)
+    return df
+
+
+def add_subject_mean_features(df, ref, is_train):
+    subject_sum   = ref.groupby("subject_id")[TARGETS].sum()
+    subject_count = ref.groupby("subject_id")[TARGETS].count()
+    if is_train:
+        for t in TARGETS:
+            s_sum = df["subject_id"].map(subject_sum[t])
+            s_cnt = df["subject_id"].map(subject_count[t])
+            df[f"subj_mean_{t}"] = (s_sum - df[t]) / (s_cnt - 1).clip(lower=1)
+    else:
+        subject_mean = subject_sum / subject_count
+        for t in TARGETS:
+            df[f"subj_mean_{t}"] = df["subject_id"].map(subject_mean[t])
+    return df
+
+
+def build_features(df, ref, parquet_feat, label_feat, is_train, le):
+    df = add_date_features(df)
+    df = add_subject_mean_features(df, ref, is_train)
+    df["subject_enc"] = df["subject_id"].map(
+        lambda x: le.transform([x])[0] if x in le.classes_ else -1
+    )
+    df = df.merge(parquet_feat, left_on=["subject_id", "lifelog_date"],
+                  right_on=["subject_id", "date"], how="left").drop(columns=["date"], errors="ignore")
+    df = df.merge(label_feat, left_on=["subject_id", "lifelog_date"],
+                  right_on=["subject_id", "date"], how="left").drop(columns=["date"], errors="ignore")
+    base_cols    = (["subject_enc", "day_of_week", "month", "day_of_month",
+                     "is_weekend", "week_of_year"]
+                    + [f"subj_mean_{t}" for t in TARGETS])
+    parquet_cols = [c for c in parquet_feat.columns if c not in ("subject_id", "date")]
+    label_cols   = [c for c in label_feat.columns   if c not in ("subject_id", "date")]
+    all_cols = ["subject_id"] + base_cols + parquet_cols + label_cols
+    return df[[c for c in all_cols if c in df.columns]].reset_index(drop=True)
+
+
+# ──────────────────────────────────────────────
+# Phase 0: Feature Importance (slim 80%)
+# ──────────────────────────────────────────────
+
+def compute_importance(train, parquet_feat, le, sensor_cols, fold_label_feats, best_gps):
+    importance_dict = {t: [] for t in TARGETS}
+    feature_names_ref = {}
+
+    for tr_idx, val_idx, train_fold, val_fold, lf_tr, lf_val in fold_label_feats:
+        X_tr  = build_features(train_fold, train_fold, parquet_feat, lf_tr, True, le)
+        sid_tr = X_tr["subject_id"].reset_index(drop=True)
+        tr_stats = compute_subj_stats(sid_tr, X_tr, sensor_cols)
+        X_tr_z  = apply_zscore(sid_tr, X_tr.drop(columns=["subject_id"]), tr_stats, sensor_cols)
+
+        for t in TARGETS:
+            drop_cols = [f"subj_mean_{t}"] + DROP_USAGE
+            X_tr_t = X_tr_z.drop(columns=drop_cols, errors="ignore")
+            if t not in feature_names_ref:
+                feature_names_ref[t] = X_tr_t.columns.tolist()
+            tr_median   = X_tr_t.median()
+            X_tr_filled = X_tr_t.fillna(tr_median)
+            y = train[t].values
+            model = ExtraTreesClassifier(**{**best_gps[t], "random_state": 42})
+            model.fit(X_tr_filled, y[tr_idx])
+            importance_dict[t].append(model.feature_importances_)
+
+    all_imp = {t: pd.Series(np.mean(importance_dict[t], axis=0),
+                            index=feature_names_ref[t])
+               for t in TARGETS}
+    common_feats = list(reduce(lambda a, b: a & b,
+                               [set(all_imp[t].index) for t in TARGETS]))
+    combined = pd.DataFrame({t: all_imp[t][common_feats] for t in TARGETS})
+    combined["mean_imp"] = combined.mean(axis=1)
+    combined = combined.sort_values("mean_imp", ascending=False)
+    total = combined["mean_imp"].sum()
+    combined["cumsum"] = combined["mean_imp"].cumsum() / total
+    keep = combined[combined["cumsum"] <= IMP_COVERAGE].index.tolist()
+
+    print(f"  전체 공통 피처: {len(combined)}개")
+    print(f"  상위 {IMP_COVERAGE*100:.0f}% 커버: {len(keep)}개 유지 / {len(combined)-len(keep)}개 제거")
+    return set(keep)
+
+
+# ──────────────────────────────────────────────
+# Phase 2: LOSO 앙상블용 폴드 사전 계산
+# ──────────────────────────────────────────────
+
+def precompute_fold_features(train, test, parquet_feat, le, sensor_cols,
+                             fold_label_feats, label_feat_test, full_stats, keep_feats):
+    fold_base = []
+    for tr_idx, val_idx, train_fold, val_fold, lf_tr, lf_val in fold_label_feats:
+        X_tr  = build_features(train_fold, train_fold, parquet_feat, lf_tr,  True,  le)
+        X_val = build_features(val_fold,   train_fold, parquet_feat, lf_val, False, le)
+        sid_tr  = X_tr["subject_id"].reset_index(drop=True)
+        sid_val = X_val["subject_id"].reset_index(drop=True)
+        tr_stats  = compute_subj_stats(sid_tr,  X_tr,  sensor_cols)
+        val_stats = compute_subj_stats(sid_val, X_val, sensor_cols)
+        X_tr_z  = apply_zscore(sid_tr,  X_tr.drop(columns=["subject_id"]),  tr_stats,  sensor_cols)
+        X_val_z = apply_zscore(sid_val, X_val.drop(columns=["subject_id"]), val_stats, sensor_cols)
+        fold_base.append((tr_idx, val_idx, X_tr_z, X_val_z))
+
+    X_te_raw = build_features(test.copy(), train, parquet_feat, label_feat_test, False, le)
+    sid_te   = X_te_raw["subject_id"].reset_index(drop=True)
+    X_te_z   = apply_zscore(sid_te, X_te_raw.drop(columns=["subject_id"]), full_stats, sensor_cols)
+
+    fold_by_target = {}
+    te_by_target   = {}
+    for t in TARGETS:
+        drop_cols = [f"subj_mean_{t}"] + DROP_USAGE
+        first_tr  = fold_base[0][2].drop(columns=drop_cols, errors="ignore")
+        slim_cols = [c for c in first_tr.columns if c in keep_feats]
+
+        fold_by_target[t] = []
+        for tr_idx, val_idx, X_tr_z, X_val_z in fold_base:
+            X_tr_t  = X_tr_z.drop(columns=drop_cols, errors="ignore")
+            X_val_t = X_val_z.drop(columns=drop_cols, errors="ignore")
+            fold_by_target[t].append(
+                (tr_idx, val_idx,
+                 X_tr_t[[c for c in slim_cols if c in X_tr_t.columns]],
+                 X_val_t[[c for c in slim_cols if c in X_val_t.columns]])
+            )
+        X_te_t = X_te_z.drop(columns=drop_cols, errors="ignore")
+        te_by_target[t] = X_te_t[[c for c in slim_cols if c in X_te_t.columns]]
+
+    return fold_by_target, te_by_target
+
+
+# ──────────────────────────────────────────────
+# Phase 3: Within-subject 보정 데이터 생성
+# ──────────────────────────────────────────────
+
+def build_ws_features_and_predict(train_fold, val_fold, parquet_feat, le,
+                                   sensor_cols, keep_feats, best_et, seed):
+    """
+    (train_fold, val_fold)으로 피처 생성 -> ET 학습 -> val_fold 예측.
+    train_fold에 val 피험자의 일부 데이터가 포함되어 있어
+    subj_mean, z-score가 실제 학습 데이터를 반영함.
+    """
+    lf_tr  = build_label_features(train_fold, train_fold)
+    lf_val = build_label_features(train_fold, val_fold)
+
+    X_tr  = build_features(train_fold, train_fold, parquet_feat, lf_tr,  True,  le)
+    X_val = build_features(val_fold,   train_fold, parquet_feat, lf_val, False, le)
+
+    sid_tr  = X_tr["subject_id"].reset_index(drop=True)
+    sid_val = X_val["subject_id"].reset_index(drop=True)
+    tr_stats = compute_subj_stats(sid_tr, X_tr, sensor_cols)
+
+    # val에도 train stats 적용 (피험자 기준선이 일관되게 사용됨)
+    X_tr_z  = apply_zscore(sid_tr,  X_tr.drop(columns=["subject_id"]),  tr_stats, sensor_cols)
+    X_val_z = apply_zscore(sid_val, X_val.drop(columns=["subject_id"]), tr_stats, sensor_cols)
+
+    preds = {}
+    for t in TARGETS:
+        drop_cols = [f"subj_mean_{t}"] + DROP_USAGE
+        X_tr_t  = X_tr_z.drop(columns=drop_cols, errors="ignore")
+        X_val_t = X_val_z.drop(columns=drop_cols, errors="ignore")
+
+        slim_cols = [c for c in keep_feats if c in X_tr_t.columns]
+        X_tr_t  = X_tr_t[[c for c in slim_cols if c in X_tr_t.columns]]
+        X_val_t = X_val_t[[c for c in slim_cols if c in X_val_t.columns]]
+
+        tr_med   = X_tr_t.median()
+        X_tr_f   = X_tr_t.fillna(tr_med)
+        X_val_f  = X_val_t.fillna(tr_med)
+
+        y_tr = train_fold[t].values
+        model = ExtraTreesClassifier(**{**best_et[t], "random_state": seed})
+        model.fit(X_tr_f, y_tr)
+        preds[t] = model.predict_proba(X_val_f)[:, 1]
+
+    return preds
+
+
+def compute_ws_oof(train, parquet_feat, le, sensor_cols, keep_feats, best_et):
+    """
+    각 피험자에 대해 within-subject 시간 순 70/30 hold-out.
+    훈련셋 = (다른 9명 전체) + (해당 피험자 앞 70%)
+    val셋  = 해당 피험자 뒤 30%
+
+    -> 모델이 해당 피험자를 알고 있는 상태에서의 보정 예측 생성
+    """
+    subjects = sorted(train["subject_id"].unique())
+    ws_oof = {t: np.full(len(train), np.nan) for t in TARGETS}
+
+    print(f"  within-subject hold-out (앞 {int((1-WS_HOLDOUT_RATIO)*100)}% 훈련 / "
+          f"뒤 {int(WS_HOLDOUT_RATIO*100)}% hold-out, {len(WS_SEEDS)} seeds)")
+    print()
+
+    for sid in subjects:
+        sid_mask  = (train["subject_id"] == sid).values
+        sid_idx   = np.where(sid_mask)[0]
+
+        # 날짜 순 정렬
+        dates = pd.to_datetime(train.iloc[sid_idx]["lifelog_date"]).values
+        order = np.argsort(dates)
+        sid_idx_sorted = sid_idx[order]
+
+        n_sid    = len(sid_idx_sorted)
+        n_tr     = max(int(n_sid * (1 - WS_HOLDOUT_RATIO)), 1)
+        n_val    = n_sid - n_tr
+
+        if n_val == 0:
+            print(f"  {sid}: 데이터 부족으로 hold-out 생략")
+            continue
+
+        tr_global_sid = sid_idx_sorted[:n_tr]
+        val_global    = sid_idx_sorted[n_tr:]
+
+        other_idx   = np.where(~sid_mask)[0]
+        tr_global   = np.concatenate([other_idx, tr_global_sid])
+
+        train_fold = train.iloc[tr_global].copy().reset_index(drop=True)
+        val_fold   = train.iloc[val_global].copy().reset_index(drop=True)
+
+        # 여러 시드로 예측 평균 -> 안정적인 보정 데이터
+        seed_preds = {t: np.zeros(n_val) for t in TARGETS}
+        for seed in WS_SEEDS:
+            preds = build_ws_features_and_predict(
+                train_fold, val_fold, parquet_feat, le, sensor_cols, keep_feats, best_et, seed
+            )
+            for t in TARGETS:
+                seed_preds[t] += preds[t] / len(WS_SEEDS)
+
+        for t in TARGETS:
+            ws_oof[t][val_global] = seed_preds[t]
+
+        val_dates = pd.to_datetime(train.iloc[val_global]["lifelog_date"]).dt.date.values
+        print(f"  {sid}: 훈련 {n_tr}일 / hold-out {n_val}일 "
+              f"({val_dates[0]} ~ {val_dates[-1]})")
+
+    return ws_oof
+
+
+# ──────────────────────────────────────────────
+# 보정 유틸
+# ──────────────────────────────────────────────
+
+def fit_logit_bias(pred_oof, y_true, reg=CALIB_REG, bound=BIAS_BOUND):
+    eps = 1e-6
+    p  = np.clip(pred_oof, eps, 1 - eps)
+    lp = logit_fn(p)
+
+    def obj(b):
+        return log_loss(y_true, expit_fn(lp + b)) + reg * (b ** 2)
+
+    res = minimize_scalar(obj, bounds=(-bound, bound), method="bounded")
+    return float(res.x)
+
+
+def apply_logit_bias(pred_raw, bias, eps=1e-6):
+    p = np.clip(pred_raw, eps, 1 - eps)
+    return expit_fn(logit_fn(p) + bias)
+
+
+# ──────────────────────────────────────────────
+# 메인 파이프라인
+# ──────────────────────────────────────────────
+
+def train_and_predict(train, test, parquet_feat):
+    le          = LabelEncoder().fit(train["subject_id"])
+    groups      = train["subject_id"].values
+    cv          = GroupKFold(n_splits=10)
+    sensor_cols = get_sensor_cols(parquet_feat)
+    n_seeds     = len(SEEDS)
+    subjects    = sorted(train["subject_id"].unique())
+
+    fold_indices = list(cv.split(np.zeros(len(train)), train[TARGETS[0]].values, groups))
+
+    print("label 피처 사전 계산 중...")
+    label_feat_test = build_label_features(train, test)
+    fold_label_feats = []
+    for tr_idx, val_idx in fold_indices:
+        train_fold = train.iloc[tr_idx].copy()
+        val_fold   = train.iloc[val_idx].copy()
+        lf_tr  = build_label_features(train_fold, train_fold)
+        lf_val = build_label_features(val_fold,   val_fold)
+        fold_label_feats.append((tr_idx, val_idx, train_fold, val_fold, lf_tr, lf_val))
+    print("  완료")
+
+    lf_full    = build_label_features(train, train)
+    X_full     = build_features(train, train, parquet_feat, lf_full, True, le)
+    full_stats = compute_subj_stats(X_full["subject_id"], X_full, sensor_cols)
+
+    gps_params = load_params(ET_KEY_GPS)
+    if not gps_params:
+        print("ERROR: extratrees_gps params 캐시 없음.")
+        return None
+    best_gps = {t: gps_params[t] for t in TARGETS}
+
+    # ── Phase 0 ──
+    print("=== Phase 0: Feature Importance (slim 80%) ===")
+    keep_feats = compute_importance(train, parquet_feat, le, sensor_cols,
+                                    fold_label_feats, best_gps)
+    print()
+
+    print("폴드 피처 사전 계산 중...")
+    fold_by_target, te_by_target = precompute_fold_features(
+        train, test, parquet_feat, le, sensor_cols,
+        fold_label_feats, label_feat_test, full_stats, keep_feats,
+    )
+    n_feats = fold_by_target[TARGETS[0]][0][2].shape[1]
+    print(f"  완료 (피처 수: {n_feats}개)\n")
+
+    # ── Phase 1 ──
+    slim_params = load_params(ET_KEY_SLIM)
+    if not slim_params:
+        print(f"ERROR: {ET_KEY_SLIM} 캐시 없음. extratrees_gps_slim80_ensemble.py를 먼저 실행하세요.")
+        return None
+    best_et = {t: slim_params[t] for t in TARGETS}
+    print(f"=== Phase 1: 저장된 params 로드 ({ET_KEY_SLIM}) ===")
+    for t in TARGETS:
+        bp = best_et[t]
+        print(f"  {t}: n_est={bp['n_estimators']}, depth={bp['max_depth']}, "
+              f"max_feat={bp['max_features']:.4f}")
+    print()
+
+    # ── Phase 2: LOSO 앙상블 ──
+    print(f"=== Phase 2: LOSO 앙상블 ({n_seeds} seeds) ===")
+    print(f"{'시드':>6}  " + "  ".join(f"{t:>6}" for t in TARGETS) + "  평균LL")
+    print("-" * (8 + 9 * len(TARGETS) + 8))
+
+    et_oof  = {t: np.zeros(len(train)) for t in TARGETS}
+    et_test = {t: np.zeros(len(test))  for t in TARGETS}
+
+    for seed_i, seed in enumerate(SEEDS):
+        seed_oof  = {t: np.zeros(len(train)) for t in TARGETS}
+        seed_test = {t: np.zeros(len(test))  for t in TARGETS}
+
+        for t in TARGETS:
+            y = train[t].values
+            et_params = {**best_et[t], "random_state": seed}
+            for tr_idx, val_idx, X_tr, X_val in fold_by_target[t]:
+                tr_med    = X_tr.median()
+                X_tr_f    = X_tr.fillna(tr_med)
+                X_val_f   = X_val.fillna(tr_med)
+                X_te_f    = te_by_target[t].fillna(tr_med)
+                em = ExtraTreesClassifier(**et_params)
+                em.fit(X_tr_f, y[tr_idx])
+                seed_oof[t][val_idx]  = em.predict_proba(X_val_f)[:, 1]
+                seed_test[t]         += em.predict_proba(X_te_f)[:, 1] / cv.n_splits
+
+        for t in TARGETS:
+            et_oof[t]  += seed_oof[t]  / n_seeds
+            et_test[t] += seed_test[t] / n_seeds
+
+        lls = [log_loss(train[t].values, et_oof[t] * n_seeds / (seed_i + 1))
+               for t in TARGETS]
+        ll_str = "  ".join(f"{ll:>6.4f}" for ll in lls)
+        print(f"{seed:>6}  {ll_str}  {np.mean(lls):>6.4f}")
+
+    print()
+    lls_raw = {t: log_loss(train[t].values, et_oof[t]) for t in TARGETS}
+    print(f"Phase 2 평균 OOF LL (보정 전): {np.mean(list(lls_raw.values())):.4f}\n")
+
+    # ── Phase 3: Within-subject hold-out 보정 데이터 ──
+    print("=== Phase 3: Within-subject Temporal Hold-out ===")
+    ws_oof = compute_ws_oof(train, parquet_feat, le, sensor_cols, keep_feats, best_et)
+    print()
+
+    # ── Phase 4: logit bias 추정 ──
+    print(f"=== Phase 4: logit bias 추정 (REG={CALIB_REG}) ===\n")
+
+    # LOSO 기반 bias (비교용)
+    loso_biases = {}
+    ws_biases   = {}
+
+    for sid in subjects:
+        sid_mask = (train["subject_id"] == sid).values
+        loso_biases[sid] = {}
+        ws_biases[sid]   = {}
+        for t in TARGETS:
+            y = train[t].values[sid_mask]
+
+            # LOSO 기반
+            pred_loso = et_oof[t][sid_mask]
+            if len(np.unique(y)) >= 2:
+                loso_biases[sid][t] = fit_logit_bias(pred_loso, y)
+            else:
+                loso_biases[sid][t] = 0.0
+
+            # WS 기반
+            ws_valid = ~np.isnan(ws_oof[t][sid_mask])
+            if ws_valid.sum() >= 3 and len(np.unique(y[ws_valid])) >= 2:
+                ws_biases[sid][t] = fit_logit_bias(
+                    ws_oof[t][sid_mask][ws_valid], y[ws_valid]
+                )
+            else:
+                # hold-out 데이터 불충분 -> LOSO bias로 대체
+                ws_biases[sid][t] = loso_biases[sid][t]
+
+    # 비교 출력
+    print(f"{'피험자':<8}  {'방법':<6}  " + "  ".join(f"{t:>7}" for t in TARGETS) + "  평균|편향|")
+    print("-" * (16 + 10 * len(TARGETS)))
+    for sid in subjects:
+        for label, biases_d in [("LOSO", loso_biases), ("WS", ws_biases)]:
+            vals = [biases_d[sid][t] for t in TARGETS]
+            val_str = "  ".join(f"{v:>+7.4f}" for v in vals)
+            print(f"{sid:<8}  {label:<6}  {val_str}  {np.mean(np.abs(vals)):>8.4f}")
+        print()
+
+    # OOF LL 보정 전/후 비교
+    et_oof_ws_cal = {t: np.zeros(len(train)) for t in TARGETS}
+    for sid in subjects:
+        sid_mask = (train["subject_id"] == sid).values
+        for t in TARGETS:
+            et_oof_ws_cal[t][sid_mask] = apply_logit_bias(
+                et_oof[t][sid_mask], ws_biases[sid][t]
+            )
+
+    print("=== OOF LL 비교 (보정 전 vs LOSO보정 vs WS보정) ===")
+    print(f"{'타깃':<5}  {'보정전':>8}  {'LOSO보정후':>10}  {'WS보정후':>9}")
+    print("-" * 45)
+
+    et_oof_loso_cal = {t: np.zeros(len(train)) for t in TARGETS}
+    for sid in subjects:
+        sid_mask = (train["subject_id"] == sid).values
+        for t in TARGETS:
+            et_oof_loso_cal[t][sid_mask] = apply_logit_bias(
+                et_oof[t][sid_mask], loso_biases[sid][t]
+            )
+
+    for t in TARGETS:
+        ll_raw  = lls_raw[t]
+        ll_loso = log_loss(train[t].values, et_oof_loso_cal[t])
+        ll_ws   = log_loss(train[t].values, et_oof_ws_cal[t])
+        print(f"{t:<5}  {ll_raw:>8.4f}  {ll_loso:>10.4f}  {ll_ws:>9.4f}")
+    avg_raw  = np.mean(list(lls_raw.values()))
+    avg_loso = np.mean([log_loss(train[t].values, et_oof_loso_cal[t]) for t in TARGETS])
+    avg_ws   = np.mean([log_loss(train[t].values, et_oof_ws_cal[t])   for t in TARGETS])
+    print(f"{'평균':<5}  {avg_raw:>8.4f}  {avg_loso:>10.4f}  {avg_ws:>9.4f}")
+    print()
+    print("주의: OOF 보정 후 LL은 과낙관적 (보정 데이터와 동일 샘플).")
+    print("      WS보정 OOF LL이 LOSO보정보다 작으면 보정이 덜 aggressive 함을 의미.")
+
+    # ── Phase 5: test 예측에 WS bias 적용 ──
+    et_test_ws_cal = {t: et_test[t].copy() for t in TARGETS}
+    for sid in subjects:
+        mask_te = (test["subject_id"] == sid).values
+        if mask_te.sum() == 0:
+            continue
+        for t in TARGETS:
+            et_test_ws_cal[t][mask_te] = apply_logit_bias(
+                et_test[t][mask_te], ws_biases[sid][t]
+            )
+
+    result = test[["subject_id", "sleep_date", "lifelog_date"]].copy()
+    for t in TARGETS:
+        result[t] = et_test_ws_cal[t]
+    return result
+
+
+def main():
+    train  = pd.read_csv(DATA / "ch2026_metrics_train.csv")
+    sample = pd.read_csv(DATA / "ch2026_submission_sample.csv")
+
+    print("=== parquet v2 + GPS 피처 집계 중 ===")
+    parquet_feat = build_parquet_features()
+    gps_feat     = build_gps()
+    parquet_feat = parquet_feat.merge(gps_feat, on=["subject_id", "date"], how="left")
+    print()
+
+    print("=== ET GPS Slim 80% + Within-Subject 보정 ===\n")
+    result = train_and_predict(train, sample, parquet_feat)
+    if result is None:
+        return
+
+    result_prob = result[["subject_id", "sleep_date", "lifelog_date"]].copy()
+    for t in TARGETS:
+        result_prob[t] = result[t].clip(0.1, 0.9)
+
+    print("\n=== 최종 예측 분포 (clip 0.1~0.9) ===")
+    for t in TARGETS:
+        print(f"  {t}: min={result_prob[t].min():.3f}, "
+              f"mean={result_prob[t].mean():.3f}, "
+              f"max={result_prob[t].max():.3f}")
+
+    out_path = SUBMISSION_DIR / "et_gps_slim80_ws_calibrated_prob.csv"
+    result_prob.to_csv(out_path, index=False)
+    print(f"\n저장 완료: {out_path}")
+
+
+if __name__ == "__main__":
+    main()

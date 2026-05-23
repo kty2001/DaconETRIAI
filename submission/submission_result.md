@@ -24,3 +24,11 @@
 | extratrees_gps_slim85_prob | 0.6054882763 |
 | extratrees_gps_slim80_prob | 0.6044461004 |
 | extratrees_gps_slim75_prob | 0.6056109238 |
+| et_cb_hgb_mlp_ensemble_prob | 0.6070169324 |
+| et_cb_hgb_mlp_ensemble_submission | 11.4383427432 |
+| extratrees_v5_gps_slim85_prob | 0.6046318856 |
+| et_gps_slim80_calibrated_prob | 0.6027395452 |
+| et_gps_slim80_ws_calibrated_prob | 0.6030646769 |
+| et_gps_slim80_reg025_prob | 0.6029453794 |
+| et_gps_slim80_reg01_prob | 미제출 |
+| et_gps_slim80_reg10_prob | 미제출 |

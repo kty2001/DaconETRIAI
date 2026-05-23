@@ -35,18 +35,9 @@ DaconETRIAI/
 │   ├── parquet_features_v3.py            # parquet 집계 v3 — 수면 특화 심층 피처 34개 추가 (117컬럼)
 │   ├── label_features.py                 # lag1/2/7 + roll3/7/14/21/28 + rollstd7/14 + trend_short/l1r7/long 빌더
 │   ├── optuna_params_io.py               # Optuna best_params JSON 저장/로드 유틸
-│   ├── lgbm_optuna.py                    # LightGBM Optuna 하이퍼파라미터 튜닝 (LOSO)
-│   ├── lgbm_catboost_ensemble.py         # LGBM+CatBoost 앙상블 v1
-│   ├── lgbm_catboost_ensemble_v2.py      # LGBM+CatBoost 앙상블 v2 (roll21/28+rollstd 피처)
-│   ├── lgbm_catboost_ensemble_v3.py      # LGBM+CatBoost 앙상블 v3 — 트렌드 피처 (실패)
-│   ├── lgbm_catboost_weighted_ensemble.py# OOF 가중 앙상블 시도 (실패 — NaN 문제)
-│   ├── lgbm_catboost_et_ensemble.py      # LGBM+CatBoost+ET 3모델 시도 (실패 — NaN 문제)
 │   ├── catboost_optuna.py                # CatBoost 단독 Optuna 튜닝
-│   ├── extratrees_ensemble.py            # ExtraTrees 단독 앙상블 (현재 최고 공개점수)
-│   ├── extratrees_clip005_ensemble.py    # ET clip [0.05, 0.95] + 30 seeds (Public 0.6068, 악화)
+│   ├── extratrees_ensemble.py            # ExtraTrees 단독 앙상블
 │   ├── extratrees_v3_ensemble.py         # ExtraTrees v3 피처 단독 앙상블 (z-score 없음)
-│   ├── extratrees_extreme_optuna.py      # ET 극한 최적화 (300 trials, max_feat 0.05~0.15)
-│   ├── extratrees_semisup_ensemble.py    # 센서 유사도 기반 준지도 ET 앙상블 (효과 없음)
 │   ├── hgb_ensemble.py                   # HistGradientBoosting 단독 앙상블
 │   ├── hgb_et_ensemble.py                # HGB+ET 앙상블
 │   ├── hgb_et_v4_ensemble.py             # HGB+ET v4 (parquet v3 피처, hgb_v2/et_v2 파라미터)
@@ -68,14 +59,23 @@ DaconETRIAI/
 │   ├── extratrees_gps_slim_ensemble.py   # ET GPS Slim 90% (IMP_COVERAGE=0.90)
 │   ├── extratrees_gps_slim85_ensemble.py # ET GPS Slim 85% (현재 최고 Public 0.6055)
 │   ├── extratrees_gps_slim80_ensemble.py # ET GPS Slim 80% (OOF 기준 최고 0.6403)
-│   ├── extratrees_gps_slim75_ensemble.py # ET GPS Slim 75% (OOF 0.6398, Public 악화 예상)
+│   ├── extratrees_gps_slim75_ensemble.py # ET GPS Slim 75% (OOF 0.6398, Public 0.6056 slim80 대비 악화)
 │   ├── extratrees_v3gps_slim_ensemble.py # v3 피처+GPS Slim 90% (역효과)
 │   ├── extratrees_gps_pertarget_slim_ensemble.py # 타깃별 개별 slim 85%
 │   ├── gru_ensemble.py                   # GRU 시계열 앙상블 (10 seeds, window=14) — 데이터 부족으로 부적합
-│   └── catboost_gps_slim85_ensemble.py   # CatBoost GPS Slim 85% (실행 중)
+│   ├── catboost_gps_slim85_ensemble.py   # CatBoost GPS Slim 85% (OOF 0.6446, ET 대비 열세)
+│   ├── mwifi_features.py                 # mWifi.parquet → 21개 WiFi 피처 (wifi_entropy/home_ratio 등)
+│   ├── parquet_features_v5.py            # parquet 집계 v5 — v2 + wLight + mBle + mWifi (parquet_features_v2 확장)
+│   ├── dow_deviation_features.py         # 요일 효과 편차 피처 (개인별 요일 평균 대비 편차, 23개 센서 기준)
+│   ├── extratrees_v5_gps_slim85_ensemble.py # ET v5 피처+GPS+DOW편차 Slim 85% (OOF 0.6410, Public 0.6046)
+│   ├── mlp_gps_slim85_ensemble.py        # Multi-task MLP GPS Slim 85% (OOF avg_ll 0.6396, 10 seeds)
+│   ├── et_cb_hgb_mlp_ensemble.py         # 4모델 균등 앙상블 (ET+CatBoost+HGB+MLP, Public 0.6070 역효과)
+│   ├── et_gps_slim80_calibrated.py       # ET GPS Slim 80% + LOSO OOF 기반 피험자별 logit bias 보정 (REG=0.5)
+│   ├── et_gps_slim80_ws_calibrated.py    # ET GPS Slim 80% + Within-subject 시간순 hold-out 기반 logit bias 보정
+│   └── et_gps_slim80_reg_tuning.py       # LOSO logit bias 보정 REG 튜닝 (0.1/0.25/1.0 비교, Phase 0~2 1회 실행)
 ├── submission/
 │   ├── extratrees_ensemble_prob.csv      # ET 단독 앙상블 (Public 0.6061)
-│   ├── mlp_hgb_et_ensemble_prob.csv      # MLP+HGB+ET 3모델 (OOF 0.6383, OOF 현재 최고)
+│   ├── mlp_hgb_et_ensemble_prob.csv      # MLP+HGB+ET 3모델 (OOF 0.6383)
 │   ├── extratrees_v3_ensemble_prob.csv   # ET v3 단독 (Public 0.6094)
 │   ├── hgb_et_xt_ensemble_prob.csv       # HGB+ET+교차타깃 (OOF 0.6453, 역효과)
 │   ├── hgb_v2_ensemble_prob.csv          # HGB v2 단독 (OOF 0.6466, 미제출)
@@ -83,22 +83,26 @@ DaconETRIAI/
 │   ├── multitask_mlp_ensemble_prob.csv   # MLP 단독 (OOF 0.6398, 미제출)
 │   ├── hgb_et_v4_ensemble_prob.csv       # HGB+ET v4 (OOF 0.6438, 미제출)
 │   ├── mlp_hgb_et_v4_ensemble_prob.csv   # MLP+HGB+ET v4 (OOF 0.6395, 미제출)
-│   ├── extratrees_clip005_prob.csv       # ET clip [0.05, 0.95] 30 seeds (Public 0.6068, 악화)
 │   ├── mlp_hgb_et_weighted_prob.csv      # MLP+HGB+ET 가중치 (OOF 0.6329, Public 0.6132, 악화)
 │   ├── extratrees_optuna_v4_prob.csv     # ET v4 max_feat 0.1~0.3 집중 (Public 0.6051)
 │   ├── extratrees_gps_prob.csv          # ET + GPS 피처 앙상블 (Public 0.6044)
-│   ├── anchor_et_prob.csv               # 앵커 ET Stage2 (OOF 0.6490 — 역효과, 미제출 권장)
+│   ├── anchor_et_prob.csv               # 앵커 ET Stage2 (OOF 0.6490 — 역효과)
 │   ├── extratrees_v4_ensemble_prob.csv  # ET v4 피처 + anchor_stage1 params, 10 seeds
 │   ├── extratrees_wlight_prob.csv        # ET + GPS + wLight (Public 0.6053, 효과 없음)
-│   ├── extratrees_gps_slim85_prob.csv   # ET GPS Slim 85% (Public 0.6055 — 현재 최고)
+│   ├── extratrees_gps_slim85_prob.csv   # ET GPS Slim 85% (Public 0.6055)
 │   ├── extratrees_gps_slim80_prob.csv   # ET GPS Slim 80% (Public 0.6044)
 │   ├── extratrees_gps_slim75_prob.csv   # ET GPS Slim 75% (OOF 0.6398)
 │   ├── extratrees_gps_pertarget_slim_prob.csv # 타깃별 개별 slim
 │   ├── gru_ensemble_prob.csv            # GRU 앙상블 (OOF ~0.655, 부적합)
-│   └── catboost_gps_slim85_prob.csv     # CatBoost GPS Slim 85% (실행 중)
-│   ├── extratrees_extreme_prob.csv       # ET 극한 최적화 (OOF 0.6466, 미제출)
-│   ├── extratrees_semisup_prob.csv       # ET 준지도 (OOF 0.6459, 미제출)
-│   ├── lgbm_catboost_ensemble_v2_prob.csv# LGBM+CatBoost v2 (Public 0.6127)
+│   ├── catboost_gps_slim85_prob.csv     # CatBoost GPS Slim 85% (OOF 0.6446, 미제출)
+│   ├── mlp_gps_slim85_prob.csv          # MLP GPS Slim 85% (OOF avg_ll 0.6396, 미제출)
+│   ├── et_cb_hgb_mlp_ensemble_prob.csv  # 4모델 균등 앙상블 (Public 0.6070, 역효과)
+│   ├── extratrees_v5_gps_slim85_prob.csv# ET v5 피처 GPS Slim 85% (Public 0.6046)
+│   ├── et_gps_slim80_calibrated_prob.csv# LOSO OOF 기반 logit bias 보정 (Public 0.6027, 현재 최고)
+│   ├── et_gps_slim80_ws_calibrated_prob.csv # WS hold-out 기반 logit bias 보정 (Public 0.6031)
+│   ├── et_gps_slim80_reg025_prob.csv    # REG=0.25 보정 (Public 0.6029, REG=0.5 대비 소폭 악화)
+│   ├── et_gps_slim80_reg01_prob.csv     # REG=0.10 보정 (미제출 — 과보정 우려)
+│   ├── et_gps_slim80_reg10_prob.csv     # REG=1.00 보정 (미제출 — 과소보정)
 │   ├── optuna_params.json                # 모델별 Optuna best_params 캐시
 │   ├── feature_result.md                 # 3가지 방법론 피처 중요도 전체 수치
 │   └── submission_result.md
@@ -130,9 +134,9 @@ DaconETRIAI/
 | 스마트폰 | mUsageStats | 앱별 사용 시간 | ⚠️ 추가했으나 성능 저하 |
 | 스마트폰 | mGps | GPS 좌표/속도/고도 | ✅ 완료 (gps_features.py: 속도/장소/홈/회전반경 19개 피처 → OOF 0.6465, v2 대비 -0.0003 동률) |
 | 스마트폰 | mACStatus | 충전 여부 (0/1) | ✅ 완료 (parquet_features_v4.py: sleep/presleep/morning/daily 비율 4개 피처) |
-| 스마트폰 | mBle | 주변 BLE 기기 RSSI | ⏳ 미시도 (사회적 접촉·기기 연결 패턴) |
-| 스마트폰 | mWifi | 주변 WiFi AP RSSI | ⏳ 미시도 (위치 규칙성·실내외 패턴) |
-| 스마트워치 | wLight | 워치 조도 | ⏳ 미시도 (수면 중 광량 변화, mLight와 측정 위치 상이) |
+| 스마트폰 | mBle | 주변 BLE 기기 RSSI | ✅ 완료 (mble_features.py: 25개 피처, OOF GPS 동률 → parquet_features_v5에 포함) |
+| 스마트폰 | mWifi | 주변 WiFi AP RSSI | ✅ 완료 (mwifi_features.py: 21개 피처, wifi_entropy/home_ratio 등 → parquet_features_v5에 포함) |
+| 스마트워치 | wLight | 워치 조도 | ✅ 완료 (wlight_features.py: 16개 피처, OOF GPS 동률 → parquet_features_v5에 포함) |
 
 ---
 
@@ -175,10 +179,15 @@ $$\text{score} = \frac{1}{K} \sum_{k=1}^{K} \left( -\frac{1}{n} \sum_{i=1}^{n} \
 | hgb_v2_ensemble_prob | 미제출 | HGB v2 단독 (OOF 0.6466, ET와 동률) |
 | mlp_hgb_et_v4_ensemble_prob | 미제출 | MLP+HGB+ET v4 (OOF 0.6395) |
 | extratrees_wlight_prob | 0.6053 | ET + GPS + wLight (OOF 0.6461, 개선 없음) |
-| extratrees_gps_slim85_prob | **0.6055** | **현재 최고 공개점수** — ET GPS Slim 85% (OOF 0.6406, GPS 대비 +0.0021) |
-| extratrees_gps_slim80_prob | 0.6044 | ET GPS Slim 80% (OOF 0.6403) |
-| extratrees_gps_slim75_prob | 미제출 | ET GPS Slim 75% (OOF 0.6398, 제출 시 성능 악화 예상) |
-| catboost_gps_slim85_prob | 실행 중 | CatBoost GPS Slim 85% |
+| extratrees_gps_slim85_prob | 0.6055 | ET GPS Slim 85% (OOF 0.6406) — slim80 대비 Public 열세 |
+| **extratrees_gps_slim80_prob** | **0.6044** | **현재 최고 공개점수** — ET GPS Slim 80% (OOF 0.6403, slim85 대비 Public 개선) |
+| extratrees_gps_slim75_prob | 0.6056 | ET GPS Slim 75% (OOF 0.6398, 피처 과도 제거로 slim80 대비 악화) |
+| catboost_gps_slim85_prob | 미제출 | CatBoost GPS Slim 85% (OOF 0.6446, ET 0.6406 대비 열세) |
+| et_cb_hgb_mlp_ensemble_prob | 0.6070 | ET+CatBoost+HGB+MLP 4모델 균등 앙상블 (역효과 — 약한 모델 3개가 ET 희석) |
+| extratrees_v5_gps_slim85_prob | 0.6046 | ET v5 피처 (wLight+mBle+mWifi+DOW편차) GPS Slim 85% (OOF 0.6410, v4 대비 +0.0012) |
+| **et_gps_slim80_calibrated_prob** | **0.6027** | **현재 최고 공개점수** — LOSO OOF 기반 피험자별 logit bias 보정 (REG=0.5) |
+| et_gps_slim80_ws_calibrated_prob | 0.6031 | Within-subject 시간순 hold-out 기반 보정 (LOSO 보정 대비 소폭 악화) |
+| et_gps_slim80_reg025_prob | 0.6029 | REG=0.25 보정 (REG=0.5 대비 소폭 악화 — REG=0.5가 최적 확인) |
 
 ---
 
@@ -707,12 +716,17 @@ OOF 기준 전 타깃 개선, 평균 -0.0054로 역대 최고 OOF. 그러나 **P
 | ET + GPS + wLight | 0.6461 | 효과 없음 (GPS 동률) |
 | ET + GPS + mBle | 0.6461 | 효과 없음 (GPS 동률) |
 | **ET GPS Slim 90%** | **0.6422** | GPS 피처 + 상위 90% 커버 피처만 선택 (GPS 대비 +0.0043 개선) |
-| **ET GPS Slim 85%** | **0.6406** | **Public 0.6055 (현재 최고)** — slim90 대비 추가 개선 |
-| **ET GPS Slim 80%** | **0.6403** | Public 0.6044 — slim85 대비 Public 악화 |
-| ET GPS Slim 75% | 0.6398 | OOF 지속 개선. Public 악화 예상 (피처 과도 제거) |
+| **ET GPS Slim 85%** | **0.6406** | Public 0.6055 — slim80 대비 Public 열세 |
+| **ET GPS Slim 80%** | **0.6403** | **Public 0.6044 (현재 최고 Public)** — OOF-Public 균형 최적점 |
+| ET GPS Slim 75% | 0.6398 | Public 0.6056 — slim80 대비 악화 (피처 과도 제거) |
 | v3GPS Slim 90% | 0.6425 | parquet v3+GPS Slim 90% — v2 Slim 대비 역효과 |
+| ET v5 GPS Slim 85% (wLight+mBle+mWifi+DOW편차) | 0.6410 | Public 0.6046 — v4 대비 +0.0012 OOF 개선이나 Public은 slim80 대비 열세 |
+| 4모델 균등 앙상블 (ET+CatBoost+HGB+MLP) | — | Public 0.6070 — 약한 모델 3개가 ET(Public 0.6044)를 희석. 균등 가중치 앙상블 역효과 확인 |
 | GRU ensemble (10 seeds) | ~0.655 | 훈련 윈도우 310개로 데이터 부족 — 부적합 |
-| CatBoost GPS Slim 85% | 실행 중 | — |
+| CatBoost GPS Slim 85% | 0.6446 | ET 0.6406 대비 열세. Q3만 개선(+0.0083), Q2/S2 크게 악화. 앙상블 효과 없음 |
+| **ET GPS Slim 80% + LOSO logit bias 보정** | OOF 0.6401→0.6225 | **Public 0.6027 (현재 최고)** — 피험자×타깃 logit bias LOSO OOF 추정 후 test 적용. REG=0.5. OOF 수치는 자기 참조로 과낙관적 |
+| ET GPS Slim 80% + WS hold-out logit bias 보정 | OOF(WS) 0.6305 | Public 0.6031 (LOSO 보정 대비 소폭 열세) — WS 30% hold-out 기반 보정. 이론적으로 test 구조에 더 가깝나 경험적으로 LOSO 보정 우위 |
+| LOSO logit bias REG 튜닝 (REG=0.25) | OOF 0.6129 | Public 0.6029 (REG=0.5 0.6027 대비 소폭 악화) — REG=0.5가 현재 최적 확인. REG=0.1(OOF 0.5993)·1.0(OOF 0.6304)은 미제출 |
 
 ### 25단계: 추가 센서 피처 — wLight, mBle (효과 없음)
 
@@ -756,15 +770,43 @@ Phase 2: 10 seeds 앙상블
 
 | 모델 | 피처 수 | OOF LL | Public | 비고 |
 |------|:-------:|:------:|:------:|------|
-| GPS (기준) | 184개 | 0.6465 | 0.6044 | — |
-| Slim 90% | 132개 | 0.6422 | — | +0.0043 |
-| **Slim 85%** | **~115개** | **0.6406** | **0.6055** | **현재 최고 Public** |
-| Slim 80% | ~100개 | 0.6403 | 0.6044 | slim85 대비 Public 악화 |
-| Slim 75% | 87개 | 0.6398 | — | Public 악화 예상 |
+| GPS (기준) | 184개 | 0.6465 | 0.6044502 | — |
+| Slim 90% | 132개 | 0.6422 | 미제출 | +0.0043 OOF |
+| Slim 85% | ~115개 | 0.6406 | 0.6054882 | slim80 대비 Public 열세 |
+| **Slim 80%** | **~100개** | **0.6403** | **0.6044461** | **현재 최고 Public** |
+| Slim 75% | 87개 | 0.6398 | 0.6056109 | slim80 대비 Public 악화 |
 
-**핵심 발견**: OOF는 slim 비율을 낮출수록 단조 개선(87개에서 0.6398). 그러나 Public은 slim85(0.6055)가 최적 — 그 이하는 과도한 피처 제거로 일반화 손실. 피처 제거의 sweet spot 존재.
+**핵심 발견**: OOF는 slim 비율을 낮출수록 단조 개선(87개에서 0.6398). Public은 slim80(0.6044)가 최적 — slim85(0.6055)보다 낮은 비율(더 적은 피처)이 오히려 Public에서 유리. 단 slim75(0.6056)는 다시 악화 — 피처 제거의 sweet spot은 slim80.
 
 **slim 피처 선택 원리**: 전체 184개 피처 중 하위 중요도 피처들은 cross-subject 일반화에 노이즈로 작용. 상위 85% 커버 피처만 사용함으로써 subject별 특이 패턴에 과적합하는 피처를 차단.
+
+### 28단계: CatBoost GPS Slim 85% — ET 대비 열세
+
+ET GPS Slim 85%와 동일한 피처셋·구조로 CatBoost 도입 (모델 다양성 확보 목적).
+
+**Optuna 탐색 공간**
+```python
+iterations: 200~2000, learning_rate: 0.01~0.3 (log)
+depth: 3~10, l2_leaf_reg: 1.0~10.0
+subsample: 0.5~1.0, colsample_bylevel: 0.3~1.0
+```
+
+**타깃별 OOF LL 비교**
+
+| 타깃 | CatBoost | ET Slim 85 | 차이 |
+|------|:--------:|:----------:|:----:|
+| Q1 | 0.7016 | 0.6947 | -0.0069 ❌ |
+| Q2 | 0.6532 | 0.6446 | -0.0086 ❌ |
+| Q3 | **0.6358** | 0.6441 | **+0.0083** ✅ |
+| S1 | 0.6119 | 0.6065 | -0.0054 ❌ |
+| S2 | 0.6209 | 0.6074 | -0.0135 ❌ |
+| S3 | 0.6031 | 0.6015 | -0.0016 ❌ |
+| S4 | 0.6857 | 0.6856 | ≈동률 |
+| **평균** | **0.6446** | **0.6406** | **-0.0040** ❌ |
+
+Optuna 소요 시간: Q1만 4시간 11분, 7 타깃 전체 약 16시간.
+
+**결론**: Q3 하나만 CatBoost 우세, 나머지 6개 타깃 ET 우세. 앙상블 시 Q3 소폭 개선되나 Q2·S2 악화가 더 커 전체 OOF 악화 예상. **ET의 완전 무작위 분할이 CatBoost 대칭 트리보다 LOSO cross-subject 일반화에 적합**.
 
 ### 27단계: GRU 시계열 모델 — 데이터 부족으로 부적합
 
@@ -786,42 +828,152 @@ LOSO 학습, 10 seeds, BCEWithLogitsLoss
 
 **실패 원인**: 310개 훈련 윈도우로 GRU 파라미터 대비 데이터 부족. lag/roll 피처가 이미 시계열 의존성을 충분히 포착. 트리 계열(ET Slim 85% OOF 0.6406)에 크게 뒤짐.
 
----
+### 29단계: parquet_features_v5 + DOW편차 피처 — 미미한 효과
 
-## 피처 엔지니어링 상세
+wLight(16개), mBle(25개), mWifi(21개) 피처를 parquet_features_v5.py로 통합. 개인별 요일 편차 피처(23개 기준 센서 × 2: dow_dev + dow_mean)를 dow_deviation_features.py로 구현.
 
-### 시간대 구분 (parquet v2)
+ET GPS Slim 85%와 동일 구조에 v5 피처 + DOW편차 적용 (`extratrees_v5_gps_slim85_ensemble.py`).
 
-| 시간대 | 범위 | 의미 |
-|--------|------|------|
-| morning | 06~12시 | 오전 활동 |
-| afternoon | 12~18시 | 오후 활동 |
-| evening | 18~22시 | 저녁 활동 |
-| presleep | 22~24시 | 취침 전 |
-| sleep | 00~06시 | 수면 중 |
+| 구성 | 특이사항 |
+|------|---------|
+| parquet_features_v5 | v2 + wLight + mBle + mWifi — 센서 소스 3개 추가 |
+| DOW mean/dev 피처 | 참조 데이터(train dates)로 subject×weekday 평균 계산 후 편차 |
+| GPS Slim 85% | 기존과 동일 — slim 비율 유지 |
 
-### lag/roll 피처 조건
+| 타깃 | v5 OOF LL | v4 참조 LL | 차이 |
+|------|:---------:|:---------:|:----:|
+| Q1 | 0.6927 | 0.6947 | -0.0020 |
+| Q2 | 0.6467 | 0.6446 | +0.0021 |
+| Q3 | 0.6416 | 0.6441 | -0.0025 |
+| S1 | 0.6076 | 0.6065 | +0.0011 |
+| S2 | 0.6101 | 0.6074 | +0.0027 |
+| S3 | 0.6086 | 0.6015 | +0.0071 (악화) |
+| S4 | 0.6789 | 0.6856 | -0.0067 |
+| **평균** | **0.6410** | **0.6406** | **+0.0012 개선** |
 
-| 피처 | 조건 | 포착 패턴 |
-|------|------|-----------|
-| lag1_{t} | 날짜 간격 ≤ 2일 | 전날 상태 |
-| lag2_{t} | lag1 유효 + 연속 날짜 | 이틀 전 상태 |
-| lag7_{t} | target-7일 ± 2일 이내 | 주간 반복 패턴 |
-| roll3_{t} | 30일 이내 직전 3개 평균 | 단기 기준선 |
-| roll7_{t} | 30일 이내 직전 7개 평균 | 주간 기준선 |
-| roll14_{t} | 60일 이내 직전 14개 평균 | 2주 기준선 |
+**결과**: OOF +0.0012 개선(0.6422 ref 대비), **Public 0.6046** — slim80(0.6044) 대비 열세. S3 악화가 두드러짐.
+**핵심**: DOW mean 피처가 DOW dev보다 중요도 높음. 그러나 v5 피처 전체 효과는 미미 — 피처 확장보다 **학습 구조 변화**가 필요한 단계 진입.
 
-### mUsageStats 피처 (13개, 현재 미사용)
+### 30단계: 4모델 균등 앙상블 — 역효과
 
-| 피처 | 내용 |
-|------|------|
-| usage_ms_{zone} × 5 | 시간대별 총 앱 사용 시간 |
-| usage_apps_{zone} × 5 | 시간대별 사용 앱 수 |
-| usage_ms_total | 하루 전체 앱 사용 시간 |
-| usage_presleep_ratio | 취침 전 사용 비율 |
-| usage_sleep_ratio | 수면 중 사용 비율 |
+ET GPS Slim 85% + CatBoost GPS Slim 85% + HGB GPS Slim 85% + MLP GPS Slim 85%를 동일 가중치(1/4)로 결합 (`et_cb_hgb_mlp_ensemble.py`).
 
-> 절대값 및 subject z-score 모두 시도했으나 성능 저하 → 현재 모델에서 제외
+**Public 0.6070** — ET 단독 Public(0.6044) 대비 크게 악화.
+
+**실패 원인**: CatBoost(OOF 0.6446), HGB, MLP의 Public 성능이 ET(0.6406) 대비 열세임을 확인하지 않고 앙상블. 각 모델이 OOF에서 다른 패턴을 보여도, Public에서 ET보다 못한 모델들이 ET 신호를 희석시킴.
+
+**핵심 교훈**: 앙상블 구성 전 각 모델의 **Public 점수 독립 검증 필수**. OOF 다양성만으로 앙상블 효과를 기대하는 것은 위험.
+
+### 31단계: 데이터 분할 구조 분석 — 향후 전략 재검토
+
+train/test 날짜 분포를 분석한 결과, 대회의 train/test 분리는 **피험자 내부 시점 기준의 블록 분할**임을 발견.
+
+```
+피험자 내 타임라인 예시:
+[train_block1: 6월~7월] → [test_block: 7월~9월] → [train_block2: 9월~11월]
+```
+
+**LOSO CV vs 실제 test의 근본 불일치**:
+- LOSO CV 평가: "완전히 새로운(본 적 없는) 피험자를 예측할 수 있는가?"
+- 실제 test 구조: "이미 학습한 피험자의 중간 날짜를 예측하는가?"
+
+이 불일치가 OOF(~0.640) - Public(~0.604) 갭의 핵심 원인. LOSO OOF가 실제 test보다 어려운 문제를 평가하고 있어 낙관적으로 보임.
+
+**다음 전략 방향** (우선순위):
+1. **within-subject CV**: subject×time 블록으로 실제 대회 구조 근사
+2. **개인별 fine-tuning**: 베이스 모델 → 각 피험자 train으로 개인화
+3. **피험자 임베딩**: subject_id를 명시 피처로 주입
+
+### 32단계: LOSO OOF 기반 피험자별 logit bias 보정 — 현재 최고 공개점수
+
+31단계에서 발견한 LOSO-test 구조 불일치를 활용해, LOSO OOF 예측에서 피험자·타깃별 **로짓 편향(logit bias)**을 추정하고 test 예측에 적용 (`et_gps_slim80_calibrated.py`).
+
+**보정 방법**
+
+```python
+# 피험자별 타깃별 bias 최적화
+def fit_logit_bias(pred_oof, y_true, reg=0.5):
+    logit_p = logit(clip(pred_oof))
+    def obj(b):
+        return log_loss(y_true, expit(logit_p + b)) + 0.5 * b**2
+    return minimize_scalar(obj, bounds=(-2.0, 2.0), method="bounded").x
+
+# test 예측에 적용
+p_cal = expit(logit(clip(p_raw)) + bias[subject_id][target])
+```
+
+**단계별 구성**
+- Phase 0: Feature Importance (slim 80% — ~100개 피처 유지)
+- Phase 1: 캐시된 extratrees_gps_slim80 Optuna 파라미터 로드
+- Phase 2: 10 seeds LOSO 앙상블 → OOF 수집
+- Phase 3: 피험자×타깃 logit bias 피팅 (CALIB_REG=0.5)
+- Phase 4: bias 적용 후 test 예측 저장
+
+**주목할 편향 (절댓값 기준)**
+
+| 피험자 | 타깃 | LOSO bias | 의미 |
+|--------|------|:--------:|------|
+| id03 | Q1 | +0.281 | 베이스 모델이 id03 Q1을 과소예측 |
+| id06 | Q1 | -0.350 | 베이스 모델이 id06 Q1을 과대예측 |
+| id05 | S3 | -0.386 | 베이스 모델이 id05 S3를 과대예측 |
+
+**결과**
+
+| 지표 | 값 |
+|------|:--:|
+| OOF LL (보정 전) | 0.6401 |
+| OOF LL (보정 후) | 0.6225 |
+| Public Score | **0.6027 (현재 최고 공개점수)** |
+
+OOF LL 개선(-0.018)이 Public 개선(-0.017)으로 연결됨. 단, OOF LL은 보정 데이터와 평가 데이터가 같아 과낙관적 — Public과의 실질적 개선을 Public 점수로 확인.
+
+### 33단계: Within-subject 시간순 hold-out 기반 logit bias 보정 — LOSO 보정 대비 소폭 악화
+
+LOSO 보정의 이론적 약점(실제 test에서 모델이 피험자를 알고 있으나, 보정 추정 시 피험자 정보 없음)을 개선하기 위해 within-subject 시간순 hold-out으로 보정 데이터를 구성 (`et_gps_slim80_ws_calibrated.py`).
+
+**핵심 차이**: 각 피험자의 학습 데이터 앞 70%로 학습 후, 뒤 30%를 hold-out 보정 데이터로 사용.
+
+```python
+# 피험자 i의 날짜를 시간순 정렬 후 70:30 분할
+dates_sorted = sort(subject_i_dates)
+train_dates = dates_sorted[:int(n * 0.70)]   # 다른 9명 + 자신의 앞 70%로 학습
+holdout_dates = dates_sorted[int(n * 0.70):]  # 자신의 뒤 30%로 보정 추정
+```
+
+**이론적 근거**: 실제 test에서 모델은 해당 피험자의 train 데이터 전체로 학습됨 → WS hold-out은 "피험자 알고 있음" 시나리오를 근사, LOSO보다 test 구조에 더 가까움.
+
+**실험 결과 (OOF LL 비교)**
+
+| 타깃 | 보정 전 | LOSO 보정 | WS 보정 | 비고 |
+|------|:------:|:---------:|:-------:|------|
+| Q1 | 0.6977 | 0.6744 | 0.6784 | WS > LOSO |
+| Q2 | 0.6395 | 0.6264 | 0.6301 | WS > LOSO |
+| S3 | 0.5985 | 0.5741 | 0.5917 | WS > LOSO |
+| **평균** | **0.6401** | **0.6225** | **0.6305** | WS > LOSO |
+
+**Public Score: 0.6031** — LOSO 보정(0.6027) 대비 소폭 악화.
+
+**분석**: 이론적으로 WS 보정이 더 적합하나, 실제 공개점수는 LOSO 보정이 우위. 이유:
+1. WS 보정 데이터(각 피험자 뒤 30% 날짜)가 실제 test 날짜 분포와 다를 수 있음
+2. id04의 WS 평균 |bias| 0.197 (LOSO 0.069 대비 3배) — 18날짜로 보정 추정 시 분산 과다
+3. LOSO 편향이 적어 더 보수적으로 작동 → 과도한 보정 위험 감소
+
+### 34단계: LOSO logit bias 보정 REG 튜닝 — REG=0.5가 현재 최적
+
+REG=0.5(Public 0.6027)를 기준으로 REG=0.1·0.25·1.0을 비교 (`et_gps_slim80_reg_tuning.py`).
+
+Phase 0~2(피처 계산 + 10 seeds LOSO 앙상블)를 1회만 실행하고, Phase 3에서 REG별 bias 재추정으로 효율적 비교.
+
+**REG별 결과**
+
+| REG | OOF LL (보정 후) | 평균 \|bias\| 대표값 | Public | 비고 |
+|:---:|:---:|---|:---:|---|
+| 0.10 | 0.5993 | id03 Q1=+0.813, id06 Q1=-0.984, id05 S3=-1.088 | 미제출 | 과보정 우려 — 극단 편향 |
+| 0.25 | 0.6129 | id03 Q1=+0.475, id06 Q1=-0.582 | **0.6029** | REG=0.5 대비 소폭 악화 |
+| **0.50** | **0.6225** | id03 Q1=+0.281, id06 Q1=-0.350 | **0.6027** | **현재 최고 — 최적 REG** |
+| 1.00 | 0.6304 | id03 Q1=+0.157, id06 Q1=-0.193 | 미제출 | 과소보정 예상 |
+
+**결론**: REG가 낮아질수록 OOF LL은 개선되지만(자기참조 과적합), Public에서는 REG=0.5가 최적. REG=0.25도 소폭 악화(0.6029)에 그쳐 REG=0.5의 L2 페널티 강도가 이 데이터에 잘 맞음을 확인. REG 방향의 추가 튜닝은 한계 도달.
 
 ---
 
@@ -853,21 +1005,6 @@ LOSO 학습, 10 seeds, BCEWithLogitsLoss
 | 18 | `usage_ms_evening` | 저녁 총 앱 사용 시간 | 54.5 |
 | 19 | `act_ratio_evening` | 저녁 활동 비율 | 54.4 |
 | 20 | `hr_std_morning` | 오전 심박수 표준편차 | 54.2 |
-
-### 타깃별 Top-10
-
-| 순위 | Q1 (수면의 질) | Q2 (피로도) | Q3 (스트레스) | S1 (수면 시간) | S2 (수면 효율) | S3 (수면 지연) | S4 (각성 시간) |
-|------|--------------|------------|--------------|--------------|--------------|--------------|--------------|
-| 1 | `hr_mean` | `screen_ratio_presleep` | `light_mean_morning` | `subj_mean_Q1` | `light_mean_presleep` | `light_mean_presleep` | `light_mean_presleep` |
-| 2 | `subj_mean_S1` | `hr_min_val` | `screen_ratio_presleep` | `hr_min_val` | `usage_apps_afternoon` | `hr_min_val` | `usage_apps_afternoon` |
-| 3 | `light_mean_presleep` | `usage_apps_morning` | `roll3_Q1` | `subj_mean_S2` | `hr_max_val` | `screen_ratio_afternoon` | `hr_std_morning` |
-| 4 | `light_mean_morning` | `subj_mean_Q3` | `hr_mean_evening` | `act_ratio_evening` | `usage_apps_evening` | `light_mean_evening` | `hr_std_evening` |
-| 5 | `usage_apps_morning` | `hr_std_evening` | `day_of_month` | `screen_ratio_sleep` | `light_mean_evening` | `hr_mean_morning` | `light_mean_morning` |
-| 6 | `screen_ratio_afternoon` | `screen_ratio_evening` | `hr_std` | `light_mean_evening` | `usage_ms_evening` | `act_ratio_afternoon` | `hr_min_val` |
-| 7 | `hr_mean_evening` | `usage_apps_presleep` | `light_mean_presleep` | `hr_mean_morning` | `usage_ms_afternoon` | `screen_ratio_presleep` | `light_mean_sleep` |
-| 8 | `usage_presleep_ratio` | `light_mean_morning` | `light_mean_afternoon` | `light_mean_presleep` | `usage_ms_total` | `usage_ms_presleep` | `usage_ms_afternoon` |
-| 9 | `screen_ratio_sleep` | `hr_std` | `hr_std_presleep` | `day_of_week` | `roll14_S3` | `week_of_year` | `usage_apps_evening` |
-| 10 | `hr_mean_morning` | `light_mean_presleep` | `light_mean_sleep` | `usage_presleep_ratio` | `light_max` | `hr_mean_afternoon` | `hr_std` |
 
 ### 3가지 방법론 비교 요약
 
@@ -936,6 +1073,13 @@ LOSO 학습, 10 seeds, BCEWithLogitsLoss
 | **ET + GPS + mBle (25개 피처)** | OOF 0.6461 (GPS 동률) | BLE 스캔 피처 25개 추가. 효과 없음 — 소규모 LOSO에서 BLE 기기 패턴이 일반화 안 됨 |
 | **ET GPS Feature Importance Slim (90/85/80/75%)** | OOF 0.6422/0.6406/0.6403/0.6398 | 피처 중요도 상위 N% 커버 피처만 선택 → 하위 피처 노이즈 제거. slim85 Public 0.6055 (현재 최고). slim75는 피처 과도 제거로 Public 악화 예상 |
 | **GRU ensemble (window=14, 10 seeds)** | OOF ~0.655 | 14일 윈도우 GRU 시계열 모델. 훈련 윈도우 310개 부족으로 부적합. lag/roll 피처가 이미 시계열 의존성 포착 |
+| **CatBoost GPS Slim 85%** | OOF 0.6446 (❌ ET 0.6406 대비 열세) | Q3(+0.0083)만 ET 대비 우세. Q2(-0.0086), S2(-0.0135) 크게 열세. ET의 완전 무작위 분할이 CatBoost 대칭 트리보다 LOSO cross-subject 일반화에 유리 |
+| **parquet_features_v5 (wLight+mBle+mWifi)** | OOF GPS 동률 (개별 추가 효과 없음) | 센서 소스 3개 추가해도 LOSO OOF 변화 없음. GPS가 이미 이동 패턴 포착, BLE/WiFi는 10명 환경에서 cross-subject 일반화 실패 |
+| **DOW deviation 피처 (요일별 편차)** | ET v5: OOF 0.6410 (+0.0012 v4 대비) | DOW mean(요일 평균) 피처가 DOW dev(편차)보다 중요도 높음. 단독 기여보다 상호 보완 효과. S3 소폭 악화 |
+| **4모델 균등 앙상블 (ET+CatBoost+HGB+MLP GPS Slim 85%)** | Public 0.6070 (❌ ET 0.6044 대비 크게 악화) | 약한 모델 3개(CatBoost 0.6446, HGB 미확인, MLP 미확인)가 ET(0.6406) 신호를 희석. 균등 가중치 전략 실패 — 각 구성 모델의 Public 성능이 확인된 후 앙상블해야 함 |
+| **LOSO OOF 기반 피험자별 logit bias 보정 (REG=0.5)** | OOF 0.6401→0.6225, **Public 0.6027 (현재 최고)** | 10 seeds LOSO 앙상블 OOF에서 피험자×타깃 logit bias 추정 후 test 적용. id03/id06/id05의 큰 편향이 보정됨. OOF-based 보정이므로 OOF LL 수치 자체는 과낙관적 |
+| **WS 시간순 hold-out 기반 logit bias 보정** | OOF LOSO_cal 0.6225 → WS_cal 0.6305, Public 0.6031 (❌ LOSO 보정 0.6027 대비 소폭 악화) | 각 피험자 앞 70% 날짜로 학습, 뒤 30%로 보정 추정. 이론적으로 test 구조에 더 가까우나 id04의 WS |bias|=0.197(LOSO 0.069 대비 3배)으로 분산 과다. LOSO 보정이 경험적으로 우위 |
+| **LOSO logit bias 보정 REG 튜닝** | REG=0.25: OOF 0.6129, Public 0.6029 (❌ REG=0.5 대비 소폭 악화) | REG 낮출수록 OOF 개선(자기참조 과적합). Public에서는 REG=0.5(0.6027)가 최적 — REG 방향 추가 개선 여지 없음 확인 |
 
 ---
 
@@ -974,17 +1118,27 @@ LOSO 학습, 10 seeds, BCEWithLogitsLoss
 | **앵커 구조 vs 2단계 스태킹 차이** | 2단계 스태킹(실패)은 Stage2가 Stage1 OOF만을 입력으로 사용 → 원본 피처 정보 손실 + 과적합. 앵커 구조는 OOF를 원본 피처에 **추가**해 Stage2 입력을 풍부하게 함 → OOF가 cross-target 상관과 subject-residual을 담은 7차원 앵커로 작동 |
 | **앵커 구조 소표본 한계** | v4 피처 자체는 Stage1 OOF 0.6457 (ET v2 0.6462 대비 개선). 그러나 Stage2에서 앵커 7개 추가 시 220피처 → 450행에서 과적합 → Stage2 OOF 0.6490 (역효과). DACON 0.5917 우승 코드는 371피처지만 대상자 분포가 더 균질해 유효. 소표본 LOSO에서 앵커 피처는 리스크. |
 | **피처 추가 vs 피처 제거 역전** | LOSO 10명 환경에서 센서 피처 추가(wLight, mBle)는 OOF 개선 없음. 반면 Feature Importance 기반 slim(하위 피처 제거)은 OOF 0.6465 → 0.6406(+0.006) 개선. 추가보다 제거가 cross-subject 일반화에 효과적. |
-| **Feature Importance Slim sweet spot** | slim 비율 낮출수록 OOF 단조 개선(75%=0.6398). 하지만 Public에서 slim85(0.6055) > slim80(0.6044) — 피처 과도 제거 시 일반화 손실. 85%가 OOF-Public 균형 최적점. |
+| **Feature Importance Slim sweet spot** | slim 비율 낮출수록 OOF 단조 개선(75%=0.6398). Public에서는 slim80(0.6044)이 최적 — slim85(0.6055)보다 낮고, slim75(0.6056)보다도 낮음. slim80이 OOF-Public 균형 최적점. |
 | **GRU/LSTM 부적합 판단** | 310개 훈련 윈도우는 GRU 파라미터(hidden×n_layers×7 타깃) 대비 데이터 부족. lag/roll 피처가 이미 시계열 의존성 포착. 짧은 시퀀스(33~57일)와 LOSO 콜드스타트 문제로 시계열 모델은 이 문제에 맞지 않음. |
+| **CatBoost LOSO 열세** | CatBoost GPS Slim 85% OOF 0.6446 vs ET 0.6406. Q3만 개선(+0.0083), Q2(-0.0086)·S2(-0.0135) 크게 열세. ET 무작위 분할이 CatBoost 대칭 트리보다 unseen subject 일반화에 유리. Optuna도 trial당 1~4분(ET 대비 10배 이상 느림)으로 비효율. |
 | **윈도우 페어 트렌드 피처** | roll3-roll7(단기 모멘텀), lag1-roll7(오늘 vs 주간 평균), roll7-roll28(주간 vs 월간 추세)을 개인별 시계열 방향 포착에 활용. NaN 안전 처리: 두 roll 중 하나라도 NaN이면 NaN으로 처리 |
 | **mACStatus 수면 프록시** | 스마트폰 충전 여부(0/1)가 수면 스케줄 규칙성의 간접 지표. 수면 중(00-06h) 충전 비율 44%, 취침 전(22-24h) 27%, 기상 후(06-09h) 저충전 → 규칙적 충전 패턴은 규칙적 수면 스케줄과 상관 |
 | **수면 확장 구간 wHr (00-09h)** | 현재 수면 구간(00-06h)을 확장해 기상 직전까지 포함. 코드셰어 0.6003 접근법이 사용한 수면 HR 스파이크(HR > mean+1std) 비율 피처 도입. 수면 중 일시적 심박 상승은 각성 이벤트 신호 |
+| **train/test 블록 구조 발견** | 대회의 train/test 분리는 각 피험자 내부의 시점으로 이루어짐. 한 피험자의 타임라인이 [train_block1 → test_block → train_block2] 형태로 교차. 즉 일부 test 날짜는 training 날짜보다 앞서고, 일부 training 날짜는 test 날짜보다 뒤. |
+| **LOSO CV vs 실제 test 구조 불일치** | LOSO CV는 "완전히 새로운 피험자에게 일반화 가능한가?"를 평가하나, 실제 test는 "이미 학습에 사용된 피험자의 특정 날짜를 예측"하는 문제. 이 불일치가 OOF-Public 갭(~0.035)의 근본 원인. 동일 피험자이므로 실제로는 within-subject 예측에 가까움. |
+| **OOF 낙관론의 역설** | LOSO OOF(~0.640)가 Public(~0.604)보다 나빠 보이는 이유: OOF는 완전 미지 피험자 예측이라 어렵고, Public은 기존 피험자 예측이라 쉬움. 즉 Public이 더 유리한 구조. OOF를 개선해도 Public이 비례해서 따라오지 않는 이유 중 하나. |
+| **4모델 균등 앙상블 함정** | 구성 모델의 Public 성능을 확인하지 않고 OOF 기준으로 앙상블하면 역효과. CatBoost/HGB/MLP 각각의 Public 성능이 ET보다 열세인 상태에서 균등 가중치 앙상블은 ET 신호 희석. **앙상블 전 각 모델의 Public 검증 필수**. |
+| **피처 버전 v5 효과 한계** | wLight+mBle+mWifi+DOW편차를 추가해도 OOF +0.0012 개선에 그침. 이는 더 많은 피처보다 **학습 구조 자체의 변화**(within-subject CV, 피험자 임베딩 등)가 필요한 단계임을 시사. |
+| **피험자별 logit bias 보정 효과** | LOSO OOF에서 추정한 피험자×타깃 logit bias를 test에 적용해 Public 0.6044→0.6027 개선. 보정은 모델이 각 피험자를 과대·과소 예측하는 체계적 오류를 로짓 공간에서 보정. REG=0.5의 L2 페널티로 소표본 bias 추정의 과적합 방지. |
+| **LOSO vs WS 보정의 역설** | WS 보정(0.6031)이 LOSO 보정(0.6027)보다 이론적으로 test 구조에 더 가까우나 경험적으로 열세. 원인: ① WS hold-out(뒤 30%)이 실제 test 날짜 분포와 불일치 ② id04의 WS |bias| 0.197(LOSO 0.069 대비 3배)으로 편향 추정 불안정 ③ LOSO 보정이 더 보수적(편향 작음)으로 작동해 과보정 위험 감소. |
+| **OOF 보정의 자기 참조 주의** | LOSO 보정 후 OOF LL 0.6225는 과낙관적 — 보정 편향이 OOF 데이터에서 추정되고 동일 OOF에서 평가되므로 완전히 신뢰할 수 없음. Public 점수(0.6027)가 실질적 성능 지표. |
+| **보정 REG의 최적점 존재** | REG=0.1(OOF 0.5993) → 0.25(0.6129) → 0.5(0.6225) → 1.0(0.6304): OOF는 REG 감소에 단조 개선. Public은 REG=0.5가 최적(0.6027), REG=0.25는 소폭 악화(0.6029). 과보정(REG 너무 낮음)이 Public에서 역효과. REG 방향의 추가 개선은 한계 도달. |
 
 ---
 
 ## 향후 개선 방향
 
-> 현재 최고 공개점수: **0.6055** (ET GPS Slim 85%) / OOF 최고: **0.6329** (MLP+HGB+ET 가중치, Public 역전) / OOF-Public 선형 최고: **0.6398** (ET GPS Slim 75%) / 리더보드 1위: 0.56119 / gap: ~0.044
+> 현재 최고 공개점수: **0.6027** (ET GPS Slim 80% + LOSO logit bias 보정) / OOF 최고: **0.6329** (MLP+HGB+ET 가중치, Public 역전) / OOF-Public 선형 최고: **0.6398** (ET GPS Slim 75%) / 리더보드 1위: 0.56119 / gap: ~0.041
 
 ### 성능 병목 분석
 
@@ -996,8 +1150,11 @@ LOSO 학습, 10 seeds, BCEWithLogitsLoss
 | HGB+ET | 0.6434 | 0.6103 | 0.033 |
 | MLP+HGB+ET | 0.6383 | 0.6062 | 0.032 |
 | ET GPS Slim 85% | 0.6406 | 0.6055 | 0.035 |
+| ET GPS Slim 80% | 0.6403 | 0.6044 | 0.036 |
+| ET v5 GPS Slim 85% | 0.6410 | 0.6046 | 0.036 |
+| **ET Slim 80% + LOSO 보정** | **0.6401 (보정 전 기준)** | **0.6027** | **0.037** |
 
-모델을 바꿔도 OOF-Public 갭이 일정 → **모델 천장이 아닌 피처 천장(feature ceiling)** 에 도달한 상태. 더 좋은 모델보다 더 좋은 정보(피처)가 성능을 결정함.
+모델을 바꿔도 OOF-Public 갭이 ~0.035 고착. **핵심 원인**: LOSO CV는 "미지 피험자 예측"을 평가하나 실제 test는 "기존 피험자의 날짜 예측" — 구조적 불일치. 피처 추가·모델 변경보다 **CV 전략과 학습 구조 변화**가 다음 돌파구. 피험자별 logit bias 보정(32단계)으로 갭 내에서 추가 개선 확인.
 
 #### Q1 고착 문제 (모든 모델 공통)
 
@@ -1038,9 +1195,16 @@ Q1("수면의 질 — 기상 직후")은 모든 모델에서 LL ≈ 0.699 고착
 | 22 | ~~ET v4 앙상블 (v4 피처 + anchor_stage1 params, 10 seeds)~~ | ✅ 완료 — OOF 0.6479 (v2 대비 +0.0017 악화. Q1/Q2/S1 개선, Q3/S2/S3 악화) |
 | 23 | ~~wLight 피처 추가 (16개)~~ | ✅ 완료 — OOF 0.6461 (GPS 동률, 효과 없음) |
 | 24 | ~~mBle 피처 추가 (25개)~~ | ✅ 완료 — OOF 0.6461 (GPS 동률, 효과 없음) |
-| 25 | ~~ET GPS Feature Importance Slim (90/85/80/75%)~~ | ✅ 완료 — slim85 OOF 0.6406, **Public 0.6055 (현재 최고)**. slim75 OOF 0.6398이나 Public 악화 예상 |
+| 25 | ~~ET GPS Feature Importance Slim (90/85/80/75%)~~ | ✅ 완료 — slim80 OOF 0.6403, **Public 0.6044 (현재 최고)**. slim85(0.6055)보다 slim80(0.6044)가 Public 우세 |
 | 26 | ~~GRU 시계열 모델 (window=14, 10 seeds)~~ | ✅ 완료 — OOF ~0.655 (훈련 윈도우 310개 부족, 부적합) |
-| 27 | CatBoost GPS Slim 85% | 실행 중 |
+| 27 | ~~CatBoost GPS Slim 85%~~ | ✅ 완료 — OOF 0.6446 (ET 0.6406 대비 +0.0040 열세. Q3만 우세, Q2/S2 크게 악화) |
+| 28 | ~~wLight + mBle + mWifi 피처 추가 (parquet_features_v5)~~ | ✅ 완료 — 개별 OOF GPS 동률. parquet_features_v5.py로 통합. DOW편차 피처와 결합 시 OOF 0.6410 (+0.0012) |
+| 29 | ~~요일 효과 편차 피처 (DOW deviation)~~ | ✅ 완료 — dow_deviation_features.py 구현. DOW mean 피처가 DOW dev보다 중요도 높음. 단독 기여 미미 |
+| 30 | ~~4모델 균등 앙상블 (ET+CatBoost+HGB+MLP)~~ | ✅ 완료 — Public 0.6070 (역효과). 약한 모델 3개가 ET 희석. 균등 가중치 앙상블 전략 한계 재확인 |
+| 31 | ~~데이터 분할 구조 분석 (train/test 블록 구조 발견)~~ | ✅ 완료 — LOSO CV vs 실제 test 구조 불일치 확인. OOF-Public 갭 근본 원인 파악. 다음 전략 방향 도출 |
+| 32 | ~~LOSO OOF 기반 피험자별 logit bias 보정 (REG=0.5)~~ | ✅ 완료 — **Public 0.6027 (현재 최고 공개점수)**. OOF LL 0.6401→0.6225 개선 |
+| 33 | ~~Within-subject 시간순 hold-out 기반 logit bias 보정~~ | ✅ 완료 — Public 0.6031 (LOSO 보정 대비 소폭 악화). WS OOF LL 0.6305 (LOSO 0.6225보다 보수적) |
+| 34 | ~~LOSO logit bias 보정 REG 튜닝 (0.1/0.25/1.0)~~ | ✅ 완료 — REG=0.25 Public 0.6029 (REG=0.5 0.6027 대비 소폭 악화). REG=0.5가 현재 최적. REG 방향 추가 탐색 한계 |
 
 ### 남은 개선 방향 (우선순위 순)
 
@@ -1049,57 +1213,14 @@ Q1("수면의 질 — 기상 직후")은 모든 모델에서 LL ≈ 0.699 고착
 | 순위 | 방법 | 기대 근거 | 리스크 |
 |------|------|-----------|--------|
 | ~~1순위~~ | ~~GPS 피처 추가 (mGps.parquet)~~ | ~~완료 — OOF 0.6465 (v2 동률). Q1/S1 개선, Q3/Q2 악화~~ | — |
-| ~~2순위~~ | ~~앵커 구조 (Stage1 OOF를 피처로)~~ | ~~실행 중 — anchor_et_ensemble.py (parquet v4 + trend + OOF 앵커)~~ | — |
+| ~~2순위~~ | ~~앵커 구조 (Stage1 OOF를 피처로)~~ | ~~완료 — Stage2 역효과 (220피처 과적합)~~ | — |
 | ~~3순위~~ | ~~윈도우 페어 트렌드 + mACStatus + 수면확장 wHr~~ | ~~완료 — label_features.py trend 21개, parquet_features_v4.py 8개 신규~~ | — |
-| **4순위** | **wLight + mBle/mWifi 피처 추가** | wLight: 손목 조도로 수면 중 광 노출(mLight와 측정 위치 다름). mBle/mWifi: 장소 다양성 entropy, 하루 접속 기기 수 | 낮음 |
-| **5순위** | **요일 효과 피처** | 현재 lag/roll만 있고 dayofweek 기반 피처 없음. 주말/주중 패턴 차이가 수면·심리에 큰 영향. 개인별 "평소 요일 대비 편차" | 낮음 |
-| **6순위** | **Pseudo-labeling** | 예측 확률 > 0.85 또는 < 0.15인 테스트 샘플을 학습 데이터에 추가. 유효 범위: train/test가 동일 10명이므로 subject 정보 활용 가능 | 중간 |
-| **7순위** | **LSTM 시계열 모델** | 현재 모든 모델이 날짜 순서 무시. LSTM은 주간 리듬·피로 누적 등 시계열 의존성 명시 포착 | 높음 (LOSO 콜드스타트, 시퀀스 33~57일로 짧음) |
-
-#### 1순위: GPS 피처 추가
-
-`mGps.parquet`는 GPS 좌표·속도·고도를 포함. 현재 `wPedo`가 걸음수·칼로리를 집계하나, GPS는 **공간적 이동 패턴**이라는 별개 정보를 제공.
-
-| 예정 피처 | 포착 신호 |
-|-----------|-----------|
-| `gps_dist_total` — 하루 총 이동 거리 | 신체 활동 강도 (wPedo 보완) |
-| `gps_n_places` — 방문 장소 수 (반경 100m 클러스터) | 생활 다양성·사회적 활동 |
-| `gps_home_duration` — 추정 자택 체류 시간 | 은둔 성향·피로 지표 |
-| `gps_radius_gyration` — 이동 범위 (회전 반경) | 생활권 규모 |
-| `gps_presleep_dist` — 취침 전 이동 거리 | 취침 전 활동 강도 |
-| `gps_place_entropy` — 장소 방문 분포 entropy | 생활 규칙성 |
-
-#### 2순위: 스태킹 앙상블
-
-현재 단순 1/3 동일 가중치 앙상블 → OOF 예측을 메타 피처로 Level-2 학습.
-
-```
-Level 1: ET, HGB, MLP 각각 OOF 예측 수집 (LOSO)
-Level 2: 타깃별 LightGBM 메타 학습기 (입력: 3모델 OOF × 7타깃 = 21열)
-         → 메타 모델이 "어느 모델이 어느 타깃에 더 신뢰할 만한가"를 학습
-```
-
-주의: 소표본(450행) 메타 과적합 방지를 위해 Ridge(alpha=1.0, positive=True) 우선 시도.
-
-#### 3순위: wLight + mBle/mWifi 피처
-
-| 센서 | 예정 피처 | 근거 |
-|------|-----------|------|
-| `wLight` | `wlight_sleep_mean`, `wlight_presleep_trend` | mLight(폰)와 달리 손목 위 조도 — 수면 자세·이불 차단 반영 가능 |
-| `mBle` | `ble_n_devices_day`, `ble_n_devices_evening` | 하루 연결 기기 수로 사회적 활동 규모 근사 |
-| `mWifi` | `wifi_n_aps_day`, `wifi_place_entropy` | 접속 AP 수·분포로 위치 다양성 보완 |
-
-#### 4순위: 요일 효과 피처
-
-```python
-# dayofweek 기반 개인화 피처 예시
-feat["dayofweek"] = target_sleep_date.dayofweek  # 0=월 ~ 6=일
-feat["is_weekend"] = int(target_sleep_date.dayofweek >= 5)
-
-# subject별 요일 평균 대비 편차 (개인화)
-subj_dow_mean = train[train.subject_id == sid].groupby("dayofweek")[t].mean()
-feat[f"dow_dev_{t}"] = current_val - subj_dow_mean.get(dayofweek, np.nan)
-```
+| ~~4순위~~ | ~~wLight + mBle/mWifi 피처 추가~~ | ~~완료 — parquet_features_v5.py. 개별 OOF GPS 동률. DOW편차 결합 시 v4 대비 +0.0012~~ | — |
+| ~~5순위~~ | ~~요일 효과 피처~~ | ~~완료 — dow_deviation_features.py. DOW mean이 기여. 단독 효과 미미~~ | — |
+| **6순위** | **within-subject CV 전환** | LOSO CV는 "새로운 피험자 예측" 평가. 실제 test는 "기존 피험자의 특정 날짜 예측". subject×time 블록 분할로 실제 대회 구조와 유사한 검증 환경 구축 | 중간 |
+| ~~7순위~~ | ~~개인별 fine-tuning (logit bias 보정)~~ | ✅ 완료 — LOSO 보정 Public 0.6027(현재 최고), WS 보정 0.6031. REG 튜닝(0.25→0.6029) 완료 — REG=0.5가 최적 확인 | — |
+| **8순위** | **피험자 임베딩 (subject_id 명시 피처)** | subject_id를 원-핫 또는 임베딩으로 주입. 피험자별 offset을 모델이 명시적으로 학습. LOSO OOF에서는 평가 불가이나 실제 test에서 유효 가능 | 높음 (LOSO OOF 측정 불가) |
+| **9순위** | **Pseudo-labeling** | 예측 확률 > 0.85 또는 < 0.15인 테스트 샘플을 학습 데이터에 추가. train/test 동일 10명 구조 활용 | 중간 |
 
 #### Q1 고착 문제
 
@@ -1129,39 +1250,6 @@ Q1("수면의 질 — 기상 직후")은 모든 모델에서 LL ≈ 0.699 고착
 
 ---
 
-## 확률 clip 전략
-
-모든 제출 파일에 `clip(0.1, 0.9)` 적용 중.
-
-### clip을 사용하는 이유
-
-Log-loss는 `log(0) = -∞`이므로 극단값(0 또는 1)이 실제 정답과 다를 경우 loss가 폭발함.
-
-| 예측값 p | 실제 y=1일 때 loss | 비고 |
-|:--------:|:-----------------:|------|
-| 0.9 | 0.105 | 자신 있게 맞춤 |
-| 0.1 | 2.303 | 자신 있게 틀림 |
-| 0.01 | 4.605 | 매우 자신 있게 틀림 |
-
-**비대칭성**: 극단적으로 틀렸을 때의 페널티(4.6)가 극단적으로 맞았을 때의 보상(0.01)보다 훨씬 큼. clip은 이 위험에 대한 보험으로, 기댓값 기준 손실을 줄임.
-
-```
-p=0.02 → clip → 0.1 : loss 3.91 → 2.30  (1.61 절약)
-p=0.98 → clip → 0.9 : loss 0.02 → 0.105 (0.085 손해)
-```
-
-### clip 범위 비교
-
-| 범위 | 특성 |
-|------|------|
-| [0.05, 0.95] | 극단값만 보호, 자신감 허용 |
-| **[0.1, 0.9]** | **현재 사용 — 균형적 보호** |
-| [0.2, 0.8] | 강한 보호, 정보 손실 큼 |
-
-LOSO처럼 완전히 새로운 subject를 예측하는 상황에서 모델이 과도한 자신감을 가질 위험이 높아 [0.1, 0.9]가 합리적. 다만 최적 범위는 실험적으로 결정 가능 (향후 개선 방향 7번).
-
----
-
 ## 환경 설정
 
 ```bash
@@ -1171,13 +1259,15 @@ uv pip install pandas pyarrow lightgbm scikit-learn optuna shap xgboost catboost
 ### 실행 순서
 
 ```bash
-# 현재 최고 공개점수 (ET GPS Slim 85%, Public 0.6055)
-uv run scripts/extratrees_gps_slim85_ensemble.py
+# 현재 최고 공개점수 (ET GPS Slim 80% + LOSO logit bias 보정 REG=0.5, Public 0.6027)
+uv run scripts/et_gps_slim80_calibrated.py
 
-# GPS 피처 기반
-uv run scripts/extratrees_gps_ensemble.py        # ET + GPS (Public 0.6044)
-uv run scripts/extratrees_gps_slim80_ensemble.py  # ET GPS Slim 80% (OOF 최고)
+# REG 튜닝 (REG=0.1/0.25/1.0 한 번에 비교)
+uv run scripts/et_gps_slim80_reg_tuning.py
 
-# CatBoost (실행 중)
-uv run scripts/catboost_gps_slim85_ensemble.py
+# Within-subject 보정 (Public 0.6031)
+uv run scripts/et_gps_slim80_ws_calibrated.py
+
+# 베이스 모델 (ET GPS Slim 80%, Public 0.6044)
+uv run scripts/extratrees_gps_slim80_ensemble.py
 ```

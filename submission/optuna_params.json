@@ -1708,5 +1708,235 @@
       "min_samples_leaf": 9,
       "max_features": 0.3147902733576097
     }
+  },
+  "catboost_gps_slim85": {
+    "Q1": {
+      "loss_function": "Logloss",
+      "verbose": false,
+      "thread_count": -1,
+      "iterations": 300,
+      "learning_rate": 0.012306887135956734,
+      "depth": 10,
+      "l2_leaf_reg": 8.69151577452247,
+      "subsample": 0.7268776118488107,
+      "colsample_bylevel": 0.6148104599753689,
+      "min_data_in_leaf": 13
+    },
+    "Q2": {
+      "loss_function": "Logloss",
+      "verbose": false,
+      "thread_count": -1,
+      "iterations": 200,
+      "learning_rate": 0.02104657117996009,
+      "depth": 3,
+      "l2_leaf_reg": 3.321288221475509,
+      "subsample": 0.5655298979757601,
+      "colsample_bylevel": 0.47434190039602386,
+      "min_data_in_leaf": 34
+    },
+    "Q3": {
+      "loss_function": "Logloss",
+      "verbose": false,
+      "thread_count": -1,
+      "iterations": 300,
+      "learning_rate": 0.021407152825182824,
+      "depth": 3,
+      "l2_leaf_reg": 9.997632237299841,
+      "subsample": 0.9618349157921009,
+      "colsample_bylevel": 0.7529520078338073,
+      "min_data_in_leaf": 49
+    },
+    "S1": {
+      "loss_function": "Logloss",
+      "verbose": false,
+      "thread_count": -1,
+      "iterations": 250,
+      "learning_rate": 0.012276343669878922,
+      "depth": 4,
+      "l2_leaf_reg": 9.981129619019606,
+      "subsample": 0.7029440415340507,
+      "colsample_bylevel": 0.6363416242551214,
+      "min_data_in_leaf": 12
+    },
+    "S2": {
+      "loss_function": "Logloss",
+      "verbose": false,
+      "thread_count": -1,
+      "iterations": 200,
+      "learning_rate": 0.012667017467873583,
+      "depth": 4,
+      "l2_leaf_reg": 3.530433385466723,
+      "subsample": 0.6556429897713448,
+      "colsample_bylevel": 0.5656223935269475,
+      "min_data_in_leaf": 39
+    },
+    "S3": {
+      "loss_function": "Logloss",
+      "verbose": false,
+      "thread_count": -1,
+      "iterations": 300,
+      "learning_rate": 0.01093412822668359,
+      "depth": 8,
+      "l2_leaf_reg": 4.2968993686398305,
+      "subsample": 0.7180738961138141,
+      "colsample_bylevel": 0.7456557999138539,
+      "min_data_in_leaf": 22
+    },
+    "S4": {
+      "loss_function": "Logloss",
+      "verbose": false,
+      "thread_count": -1,
+      "iterations": 200,
+      "learning_rate": 0.015364845135285339,
+      "depth": 5,
+      "l2_leaf_reg": 6.813258145175559,
+      "subsample": 0.5397627836280914,
+      "colsample_bylevel": 0.7051668659798935,
+      "min_data_in_leaf": 14
+    }
+  },
+  "mlp_gps_slim85": {
+    "shared": {
+      "hidden_dims_key": "256-128",
+      "dropout": 0.31707843326329943,
+      "lr": 0.00016149614799999194,
+      "weight_decay": 0.002550298070162891,
+      "n_epochs": 50,
+      "batch_size": 32,
+      "hidden_dims": [
+        256,
+        128
+      ]
+    }
+  },
+  "hgb_gps_slim85": {
+    "Q1": {
+      "learning_rate": 0.011021515237482259,
+      "max_iter": 100,
+      "max_leaf_nodes": 57,
+      "min_samples_leaf": 34,
+      "l2_regularization": 9.062860636579941,
+      "max_features": 0.17343527077661786
+    },
+    "Q2": {
+      "learning_rate": 0.010092410466738942,
+      "max_iter": 250,
+      "max_leaf_nodes": 30,
+      "min_samples_leaf": 47,
+      "l2_regularization": 3.475522813455906,
+      "max_features": 0.1291726807640345
+    },
+    "Q3": {
+      "learning_rate": 0.010872966981172568,
+      "max_iter": 400,
+      "max_leaf_nodes": 56,
+      "min_samples_leaf": 59,
+      "l2_regularization": 8.575494346073272,
+      "max_features": 0.19518134422702613
+    },
+    "S1": {
+      "learning_rate": 0.018244333349501287,
+      "max_iter": 100,
+      "max_leaf_nodes": 33,
+      "min_samples_leaf": 43,
+      "l2_regularization": 2.76302013148256,
+      "max_features": 0.10762721209320467
+    },
+    "S2": {
+      "learning_rate": 0.021059653868507715,
+      "max_iter": 100,
+      "max_leaf_nodes": 72,
+      "min_samples_leaf": 57,
+      "l2_regularization": 7.1701669973742606,
+      "max_features": 0.11749910460969656
+    },
+    "S3": {
+      "learning_rate": 0.052651053000834,
+      "max_iter": 150,
+      "max_leaf_nodes": 49,
+      "min_samples_leaf": 43,
+      "l2_regularization": 8.327716950363627,
+      "max_features": 0.10766460591965596
+    },
+    "S4": {
+      "learning_rate": 0.014180358739012022,
+      "max_iter": 200,
+      "max_leaf_nodes": 41,
+      "min_samples_leaf": 33,
+      "l2_regularization": 7.658317401981423,
+      "max_features": 0.579944234351501
+    }
+  },
+  "extratrees_v5_gps_slim85": {
+    "Q1": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 1050,
+      "max_depth": 15,
+      "min_samples_split": 7,
+      "min_samples_leaf": 10,
+      "max_features": 0.057762637098530856
+    },
+    "Q2": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 1350,
+      "max_depth": 25,
+      "min_samples_split": 18,
+      "min_samples_leaf": 10,
+      "max_features": 0.3273660457912976
+    },
+    "Q3": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 500,
+      "max_depth": 9,
+      "min_samples_split": 13,
+      "min_samples_leaf": 10,
+      "max_features": 0.26286677880680065
+    },
+    "S1": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 250,
+      "max_depth": 25,
+      "min_samples_split": 3,
+      "min_samples_leaf": 10,
+      "max_features": 0.0974902104732605
+    },
+    "S2": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 750,
+      "max_depth": 20,
+      "min_samples_split": 13,
+      "min_samples_leaf": 8,
+      "max_features": 0.08921920867193456
+    },
+    "S3": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 450,
+      "max_depth": 21,
+      "min_samples_split": 2,
+      "min_samples_leaf": 9,
+      "max_features": 0.15242451225596104
+    },
+    "S4": {
+      "criterion": "entropy",
+      "n_jobs": -1,
+      "random_state": 42,
+      "n_estimators": 850,
+      "max_depth": 20,
+      "min_samples_split": 2,
+      "min_samples_leaf": 9,
+      "max_features": 0.13046866777032845
+    }
   }
 }

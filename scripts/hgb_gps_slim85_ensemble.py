@@ -1,24 +1,27 @@
 """
-ExtraTreesClassifier 단독 앙상블 — clip [0.05, 0.95], 30 seeds
-- extratrees_v2 캐시 params 로드 (없으면 Optuna 100 trials 탐색)
-- 30 seeds 멀티 시드 앙상블
-- NaN → fold별 train median imputation
-출력: submission/extratrees_clip005_prob.csv (clip 0.05~0.95)
+HGB GPS Slim 85% ensemble
+- parquet v2 + GPS features, feature importance top 85% coverage only
+- Phase 0: importance (ExtraTrees with extratrees_gps params)
+- Phase 1: Optuna 100 trials (hgb_gps_slim85)
+- Phase 2: 10 seeds ensemble
+output: submission/hgb_gps_slim85_prob.csv (clip 0.1~0.9)
 """
 
 import numpy as np
 import pandas as pd
-from sklearn.ensemble import ExtraTreesClassifier
+from sklearn.ensemble import HistGradientBoostingClassifier, ExtraTreesClassifier
 import optuna
 from pathlib import Path
 from sklearn.model_selection import GroupKFold
 from sklearn.metrics import f1_score, log_loss
 from sklearn.preprocessing import LabelEncoder
+from functools import reduce
 
 import sys
 sys.path.insert(0, str(Path(__file__).parent))
 from label_features import build_label_features
 from parquet_features_v2 import build_all as build_parquet_features
+from gps_features import build_gps
 from optuna_params_io import load_params, save_params
 
 optuna.logging.set_verbosity(optuna.logging.WARNING)
@@ -28,20 +31,13 @@ DATA = ROOT / "data"
 SUBMISSION_DIR = ROOT / "submission"
 SUBMISSION_DIR.mkdir(exist_ok=True)
 
-ET_KEY   = "extratrees_v2"
-N_TRIALS = 100
+ET_KEY_GPS   = "extratrees_gps"
+HGB_KEY      = "hgb_gps_slim85"
+N_TRIALS     = 100
+IMP_COVERAGE = 0.85
 
 TARGETS = ["Q1", "Q2", "Q3", "S1", "S2", "S3", "S4"]
-SEEDS   = [
-    42, 123, 456, 789, 1024, 2024, 3141, 5678, 9999, 31415,
-    100, 200, 300, 400, 500, 1000, 1500, 2000, 2500, 3000,
-    3500, 4000, 4500, 5000, 7777, 8888, 10001, 20000, 50000, 99999,
-]
-
-BASELINE_F1 = {
-    "Q1": 0.649, "Q2": 0.662, "Q3": 0.712,
-    "S1": 0.788, "S2": 0.611, "S3": 0.526, "S4": 0.611,
-}
+SEEDS   = [42, 123, 456, 789, 1024, 2024, 3141, 5678, 9999, 31415]
 
 DROP_USAGE = [
     "usage_ms_morning", "usage_ms_afternoon", "usage_ms_evening",
@@ -52,17 +48,27 @@ DROP_USAGE = [
 ]
 
 ET_SEARCH = {
-    "n_estimators":      ("int",   100,  600),
-    "max_depth":         ("int",   3,    20),
+    "n_estimators":      ("int",   200,  1500, {"step": 50}),
+    "max_depth":         ("int",   3,    25),
     "min_samples_split": ("int",   2,    20),
     "min_samples_leaf":  ("int",   1,    10),
-    "max_features":      ("float", 0.1,  1.0),
+    "max_features":      ("float", 0.05, 0.5),
 }
 ET_FIXED = {
     "criterion":    "entropy",
     "n_jobs":       -1,
     "random_state": 42,
 }
+
+HGB_SEARCH = {
+    "learning_rate":     ("float", 0.01, 0.3,  {"log": True}),
+    "max_iter":          ("int",   100,  800,   {"step": 50}),
+    "max_leaf_nodes":    ("int",   15,   80),
+    "min_samples_leaf":  ("int",   10,   60),
+    "l2_regularization": ("float", 0.0,  10.0),
+    "max_features":      ("float", 0.1,  1.0),
+}
+HGB_FIXED = {}
 
 
 def get_sensor_cols(parquet_feat):
@@ -134,22 +140,57 @@ def build_features(df, ref, parquet_feat, label_feat, is_train, le):
     return df[[c for c in all_cols if c in df.columns]].reset_index(drop=True)
 
 
+def compute_importance(train, parquet_feat, le, sensor_cols, fold_label_feats, best_gps):
+    importance_dict   = {t: [] for t in TARGETS}
+    feature_names_ref = {}
+
+    for tr_idx, val_idx, train_fold, val_fold, lf_tr, lf_val in fold_label_feats:
+        X_tr   = build_features(train_fold, train_fold, parquet_feat, lf_tr, True, le)
+        sid_tr = X_tr["subject_id"].reset_index(drop=True)
+        tr_stats = compute_subj_stats(sid_tr, X_tr, sensor_cols)
+        X_tr_z   = apply_zscore(sid_tr, X_tr.drop(columns=["subject_id"]), tr_stats, sensor_cols)
+
+        for t in TARGETS:
+            drop_cols = [f"subj_mean_{t}"] + DROP_USAGE
+            X_tr_t = X_tr_z.drop(columns=drop_cols, errors="ignore")
+            if t not in feature_names_ref:
+                feature_names_ref[t] = X_tr_t.columns.tolist()
+            tr_median   = X_tr_t.median()
+            X_tr_filled = X_tr_t.fillna(tr_median)
+            y = train[t].values
+            model = ExtraTreesClassifier(**{**best_gps[t], "random_state": 42})
+            model.fit(X_tr_filled, y[tr_idx])
+            importance_dict[t].append(model.feature_importances_)
+
+    all_imp = {t: pd.Series(np.mean(importance_dict[t], axis=0),
+                            index=feature_names_ref[t])
+               for t in TARGETS}
+    common_feats = list(reduce(lambda a, b: a & b,
+                               [set(all_imp[t].index) for t in TARGETS]))
+    combined = pd.DataFrame({t: all_imp[t][common_feats] for t in TARGETS})
+    combined["mean_imp"] = combined.mean(axis=1)
+    combined = combined.sort_values("mean_imp", ascending=False)
+    total = combined["mean_imp"].sum()
+    combined["cumsum"] = combined["mean_imp"].cumsum() / total
+    keep = combined[combined["cumsum"] <= IMP_COVERAGE].index.tolist()
+
+    print(f"  전체 공통 피처: {len(combined)}개")
+    print(f"  상위 {IMP_COVERAGE*100:.0f}% 커버: {len(keep)}개 유지 / {len(combined)-len(keep)}개 제거")
+    return set(keep)
+
+
 def precompute_fold_features(train, test, parquet_feat, le, sensor_cols,
-                             fold_label_feats, label_feat_test, full_stats):
+                             fold_label_feats, label_feat_test, full_stats, keep_feats):
     fold_base = []
     for tr_idx, val_idx, train_fold, val_fold, lf_tr, lf_val in fold_label_feats:
         X_tr  = build_features(train_fold, train_fold, parquet_feat, lf_tr,  True,  le)
         X_val = build_features(val_fold,   train_fold, parquet_feat, lf_val, False, le)
-
         sid_tr  = X_tr["subject_id"].reset_index(drop=True)
         sid_val = X_val["subject_id"].reset_index(drop=True)
-
         tr_stats  = compute_subj_stats(sid_tr,  X_tr,  sensor_cols)
         val_stats = compute_subj_stats(sid_val, X_val, sensor_cols)
-
         X_tr_z  = apply_zscore(sid_tr,  X_tr.drop(columns=["subject_id"]),  tr_stats,  sensor_cols)
         X_val_z = apply_zscore(sid_val, X_val.drop(columns=["subject_id"]), val_stats, sensor_cols)
-
         fold_base.append((tr_idx, val_idx, X_tr_z, X_val_z))
 
     X_te_raw = build_features(test.copy(), train, parquet_feat, label_feat_test, False, le)
@@ -160,18 +201,25 @@ def precompute_fold_features(train, test, parquet_feat, le, sensor_cols,
     te_by_target   = {}
     for t in TARGETS:
         drop_cols = [f"subj_mean_{t}"] + DROP_USAGE
-        fold_by_target[t] = [
-            (tr_idx, val_idx,
-             X_tr_z.drop(columns=drop_cols, errors="ignore"),
-             X_val_z.drop(columns=drop_cols, errors="ignore"))
-            for tr_idx, val_idx, X_tr_z, X_val_z in fold_base
-        ]
-        te_by_target[t] = X_te_z.drop(columns=drop_cols, errors="ignore")
+        first_tr  = fold_base[0][2].drop(columns=drop_cols, errors="ignore")
+        slim_cols = [c for c in first_tr.columns if c in keep_feats]
+
+        fold_by_target[t] = []
+        for tr_idx, val_idx, X_tr_z, X_val_z in fold_base:
+            X_tr_t  = X_tr_z.drop(columns=drop_cols, errors="ignore")
+            X_val_t = X_val_z.drop(columns=drop_cols, errors="ignore")
+            fold_by_target[t].append(
+                (tr_idx, val_idx,
+                 X_tr_t[[c for c in slim_cols if c in X_tr_t.columns]],
+                 X_val_t[[c for c in slim_cols if c in X_val_t.columns]])
+            )
+        X_te_t = X_te_z.drop(columns=drop_cols, errors="ignore")
+        te_by_target[t] = X_te_t[[c for c in slim_cols if c in X_te_t.columns]]
 
     return fold_by_target, te_by_target
 
 
-def make_et_objective(search_space, fixed_params, fold_features_t, y):
+def make_hgb_objective(search_space, fixed_params, fold_features_t, y):
     def objective(trial):
         params = {**fixed_params}
         for name, spec in search_space.items():
@@ -183,17 +231,12 @@ def make_et_objective(search_space, fixed_params, fold_features_t, y):
                 params[name] = trial.suggest_float(name, spec[1], spec[2], **kwargs)
             elif kind == "categorical":
                 params[name] = trial.suggest_categorical(name, spec[1])
-
         oof = np.zeros(len(y))
         for tr_idx, val_idx, X_tr, X_val in fold_features_t:
-            tr_median    = X_tr.median()
-            X_tr_filled  = X_tr.fillna(tr_median)
-            X_val_filled = X_val.fillna(tr_median)
-            model = ExtraTreesClassifier(**params)
-            model.fit(X_tr_filled, y[tr_idx])
-            oof[val_idx] = model.predict_proba(X_val_filled)[:, 1]
+            model = HistGradientBoostingClassifier(**params, random_state=42)
+            model.fit(X_tr, y[tr_idx])
+            oof[val_idx] = model.predict_proba(X_val)[:, 1]
         return log_loss(y, oof)
-
     return objective
 
 
@@ -204,8 +247,7 @@ def train_and_predict(train, test, parquet_feat):
     sensor_cols = get_sensor_cols(parquet_feat)
     n_seeds     = len(SEEDS)
 
-    dummy_X      = np.zeros(len(train))
-    fold_indices = list(cv.split(dummy_X, train[TARGETS[0]].values, groups))
+    fold_indices = list(cv.split(np.zeros(len(train)), train[TARGETS[0]].values, groups))
 
     print("label 피처 사전 계산 중...")
     label_feat_test = build_label_features(train, test)
@@ -222,100 +264,98 @@ def train_and_predict(train, test, parquet_feat):
     X_full     = build_features(train, train, parquet_feat, lf_full, True, le)
     full_stats = compute_subj_stats(X_full["subject_id"], X_full, sensor_cols)
 
-    print("폴드 피처 사전 계산 중...")
+    gps_params = load_params(ET_KEY_GPS)
+    if not gps_params:
+        print("ERROR: extratrees_gps params 캐시 없음")
+        return None
+    best_gps = {t: gps_params[t] for t in TARGETS}
+
+    print("=== Phase 0: Feature Importance 계산 ===")
+    keep_feats = compute_importance(train, parquet_feat, le, sensor_cols,
+                                    fold_label_feats, best_gps)
+    print()
+
+    print(f"폴드 피처 사전 계산 중 (slim {IMP_COVERAGE*100:.0f}%)...")
     fold_by_target, te_by_target = precompute_fold_features(
         train, test, parquet_feat, le, sensor_cols,
-        fold_label_feats, label_feat_test, full_stats,
+        fold_label_feats, label_feat_test, full_stats, keep_feats,
     )
-    print(f"  완료 (피처 수: {fold_by_target[TARGETS[0]][0][2].shape[1]}개)\n")
+    n_feats = fold_by_target[TARGETS[0]][0][2].shape[1]
+    print(f"  완료 (피처 수: {n_feats}개)\n")
 
-    # ── Phase 1: 캐시 로드 또는 Optuna 탐색 ─────────────────────────────────
-    cached_et = load_params(ET_KEY)
-    if cached_et:
-        print(f"=== Phase 1: 캐시 params 로드 ({ET_KEY}) ===")
-        best_et = {t: cached_et[t] for t in TARGETS}
+    cached_hgb = load_params(HGB_KEY)
+    if cached_hgb:
+        print(f"=== Phase 1: 저장된 params 로드 ({HGB_KEY}) ===")
+        best_hgb = {t: cached_hgb[t] for t in TARGETS}
         for t in TARGETS:
-            bp = best_et[t]
-            print(f"  {t}: n_est={bp['n_estimators']}, depth={bp['max_depth']}, "
-                  f"max_feat={bp['max_features']:.3f}")
+            bp = best_hgb[t]
+            print(f"  {t}: lr={bp.get('learning_rate'):.4f}, "
+                  f"max_iter={bp.get('max_iter')}, max_leaf={bp.get('max_leaf_nodes')}")
         print()
     else:
-        print(f"=== Phase 1: ExtraTrees Optuna ({N_TRIALS} trials/target) ===")
-        best_et = {}
+        print(f"=== Phase 1: HGB Optuna slim85 ({N_TRIALS} trials/target) ===")
+        best_hgb = {}
         for t in TARGETS:
             y = train[t].values
             study = optuna.create_study(direction="minimize",
                                         sampler=optuna.samplers.TPESampler(seed=42))
-            study.optimize(make_et_objective(ET_SEARCH, ET_FIXED, fold_by_target[t], y),
-                           n_trials=N_TRIALS, show_progress_bar=False)
-            bp = {**ET_FIXED, **study.best_params}
-            best_et[t] = bp
-            print(f"  {t}: LogLoss={study.best_value:.4f} | "
-                  f"n_est={bp['n_estimators']}, depth={bp['max_depth']}, "
-                  f"max_feat={bp['max_features']:.3f}")
+            study.optimize(make_hgb_objective(HGB_SEARCH, HGB_FIXED, fold_by_target[t], y),
+                           n_trials=N_TRIALS, show_progress_bar=True)
+            bp = {**HGB_FIXED, **study.best_params}
+            best_hgb[t] = bp
+            print(f"  {t}: LL={study.best_value:.4f} | "
+                  f"lr={bp['learning_rate']:.4f}, max_iter={bp['max_iter']}, "
+                  f"max_leaf={bp['max_leaf_nodes']}")
         print()
-        save_params(ET_KEY, best_et)
+        save_params(HGB_KEY, best_hgb)
 
-    # ── Phase 2: 멀티 시드 예측 (30 seeds) ──────────────────────────────────
-    print(f"=== Phase 2: ET 앙상블 ({n_seeds} seeds) ===")
+    print(f"=== Phase 2: HGB slim85 앙상블 ({n_seeds} seeds) ===")
     print(f"{'시드':>6}  " + "  ".join(f"{t:>6}" for t in TARGETS) + "  평균F1   평균LL")
     print("-" * (8 + 9 * len(TARGETS) + 16))
 
-    et_oof  = {t: np.zeros(len(train)) for t in TARGETS}
-    et_test = {t: np.zeros(len(test))  for t in TARGETS}
+    hgb_oof  = {t: np.zeros(len(train)) for t in TARGETS}
+    hgb_test = {t: np.zeros(len(test))  for t in TARGETS}
 
     for seed_i, seed in enumerate(SEEDS):
-        seed_et_oof  = {t: np.zeros(len(train)) for t in TARGETS}
-        seed_et_test = {t: np.zeros(len(test))  for t in TARGETS}
+        seed_hgb_oof  = {t: np.zeros(len(train)) for t in TARGETS}
+        seed_hgb_test = {t: np.zeros(len(test))  for t in TARGETS}
 
         for t in TARGETS:
             y = train[t].values
-            et_params = {**best_et[t], "random_state": seed}
-
+            params = {**best_hgb[t], "random_state": seed}
             for tr_idx, val_idx, X_tr, X_val in fold_by_target[t]:
-                tr_median    = X_tr.median()
-                X_tr_filled  = X_tr.fillna(tr_median)
-                X_val_filled = X_val.fillna(tr_median)
-                X_te_filled  = te_by_target[t].fillna(tr_median)
-
-                em = ExtraTreesClassifier(**et_params)
-                em.fit(X_tr_filled, y[tr_idx])
-                seed_et_oof[t][val_idx]  = em.predict_proba(X_val_filled)[:, 1]
-                seed_et_test[t]         += em.predict_proba(X_te_filled)[:, 1] / cv.n_splits
+                model = HistGradientBoostingClassifier(**params)
+                model.fit(X_tr, y[tr_idx])
+                seed_hgb_oof[t][val_idx] += model.predict_proba(X_val)[:, 1]
+                seed_hgb_test[t]         += model.predict_proba(te_by_target[t])[:, 1] / cv.n_splits
 
         for t in TARGETS:
-            et_oof[t]  += seed_et_oof[t]  / n_seeds
-            et_test[t] += seed_et_test[t] / n_seeds
+            hgb_oof[t]  += seed_hgb_oof[t]  / n_seeds
+            hgb_test[t] += seed_hgb_test[t] / n_seeds
 
         f1s, lls = [], []
         for t in TARGETS:
-            cur = et_oof[t] * n_seeds / (seed_i + 1)
+            cur = hgb_oof[t] * n_seeds / (seed_i + 1)
             f1s.append(f1_score(train[t].values, (cur > 0.5).astype(int)))
             lls.append(log_loss(train[t].values, cur))
         f1_str = "  ".join(f"{f:>6.3f}" for f in f1s)
         print(f"{seed:>6}  {f1_str}  {np.mean(f1s):>6.3f}  {np.mean(lls):>6.4f}")
 
     print()
-    print(f"{'타깃':<5}  {'F1':>6}  {'OOF LL':>8}  v2 LL    차이")
-    print("-" * 45)
-    v2_ll = {"Q1": 0.6998, "Q2": 0.6478, "Q3": 0.6443,
-             "S1": 0.6161, "S2": 0.6161, "S3": 0.6124, "S4": 0.6870}
+    print(f"{'타깃':<5}  {'F1':>6}  {'OOF LL':>8}")
+    print("-" * 28)
+    lls_final = []
     for t in TARGETS:
-        f1 = f1_score(train[t].values, (et_oof[t] > 0.5).astype(int))
-        ll = log_loss(train[t].values, et_oof[t])
-        diff = ll - v2_ll[t]
-        sign = "+" if diff >= 0 else ""
-        print(f"{t:<5}  {f1:>6.3f}  {ll:>8.4f}  {v2_ll[t]:.4f}  {sign}{diff:.4f}")
-    avg_ll = np.mean([log_loss(train[t].values, et_oof[t]) for t in TARGETS])
-    avg_f1 = np.mean([f1_score(train[t].values, (et_oof[t] > 0.5).astype(int)) for t in TARGETS])
-    avg_v2 = np.mean(list(v2_ll.values()))
-    diff = avg_ll - avg_v2
-    sign = "+" if diff >= 0 else ""
-    print(f"{'평균':<5}  {avg_f1:>6.3f}  {avg_ll:>8.4f}  {avg_v2:.4f}  {sign}{diff:.4f}")
+        f1 = f1_score(train[t].values, (hgb_oof[t] > 0.5).astype(int))
+        ll = log_loss(train[t].values, hgb_oof[t])
+        lls_final.append(ll)
+        print(f"{t:<5}  {f1:>6.3f}  {ll:>8.4f}")
+    avg_ll = np.mean(lls_final)
+    print(f"{'평균':<5}  {'':>6}  {avg_ll:>8.4f}")
 
     result = test[["subject_id", "sleep_date", "lifelog_date"]].copy()
     for t in TARGETS:
-        result[t] = et_test[t]
+        result[t] = hgb_test[t]
     return result
 
 
@@ -323,24 +363,28 @@ def main():
     train  = pd.read_csv(DATA / "ch2026_metrics_train.csv")
     sample = pd.read_csv(DATA / "ch2026_submission_sample.csv")
 
-    print("=== parquet 피처 v2 집계 중 ===")
+    print("=== parquet v2 + GPS 집계 중 ===")
     parquet_feat = build_parquet_features()
+    gps_feat     = build_gps()
+    parquet_feat = parquet_feat.merge(gps_feat, on=["subject_id", "date"], how="left")
     print()
 
-    print(f"=== ExtraTrees 앙상블 clip [0.05, 0.95], {len(SEEDS)} seeds ===\n")
+    print(f"=== HGB GPS Slim {IMP_COVERAGE*100:.0f}% ===\n")
     result = train_and_predict(train, sample, parquet_feat)
+    if result is None:
+        return
 
     result_prob = result[["subject_id", "sleep_date", "lifelog_date"]].copy()
     for t in TARGETS:
-        result_prob[t] = result[t].clip(0.05, 0.95)
+        result_prob[t] = result[t].clip(0.1, 0.9)
 
-    print("\n=== 예측 분포 (clip 0.05~0.95) ===")
+    print("\n=== 예측 분포 (clip 0.1~0.9) ===")
     for t in TARGETS:
         print(f"  {t}: min={result_prob[t].min():.3f}, "
               f"mean={result_prob[t].mean():.3f}, "
               f"max={result_prob[t].max():.3f}")
 
-    out_path = SUBMISSION_DIR / "extratrees_clip005_prob.csv"
+    out_path = SUBMISSION_DIR / "hgb_gps_slim85_prob.csv"
     result_prob.to_csv(out_path, index=False)
     print(f"\n저장 완료: {out_path}")
 
