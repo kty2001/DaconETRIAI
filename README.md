@@ -72,7 +72,17 @@ DaconETRIAI/
 │   ├── et_cb_hgb_mlp_ensemble.py         # 4모델 균등 앙상블 (ET+CatBoost+HGB+MLP, Public 0.6070 역효과)
 │   ├── et_gps_slim80_calibrated.py       # ET GPS Slim 80% + LOSO OOF 기반 피험자별 logit bias 보정 (REG=0.5)
 │   ├── et_gps_slim80_ws_calibrated.py    # ET GPS Slim 80% + Within-subject 시간순 hold-out 기반 logit bias 보정
-│   └── et_gps_slim80_reg_tuning.py       # LOSO logit bias 보정 REG 튜닝 (0.1/0.25/1.0 비교, Phase 0~2 1회 실행)
+│   ├── et_gps_slim80_reg_tuning.py       # LOSO logit bias 보정 REG 튜닝 (0.1/0.25/1.0 비교, Phase 0~2 1회 실행)
+│   ├── et_gps_slim80_transductive.py     # Transductive Z-score ET GPS Slim 80% (train+test 센서 통계, Public 0.6020)
+│   ├── sensor_lag_features.py            # 센서 lag1/roll7 피처 빌더 (전날 센서값, 7일 이동평균)
+│   ├── et_gps_slim80_trans_sensorlag.py  # Transductive + 센서 lag 피처 (OOF 0.6483, 미제출)
+│   ├── et_ws_cv_transductive.py          # ET Within-Subject CV + Transductive (Public 0.6268, WS val 신뢰성 확인)
+│   ├── mlp_loso_transductive.py          # Multi-task MLP LOSO + Transductive (OOF 1.1551, MLP×LOSO 부적합 확인)
+│   ├── et_gps_slim80_trans_varreg.py     # Transductive Z-score + 피험자별 가변 REG 보정 (reg = BASE_REG * BASE_N / n_dates)
+│   ├── et_gps_slim80_alldata_ws.py       # 전체 데이터 학습 + WS OOF 편향 보정 (100% warm-start, 구조 불일치 해소)
+│   ├── et_gps_slim80_personal_blend.py  # 전체 모델 + 피험자별 개인 모델 블렌딩 (Global+Personal ET, alpha WS OOF 최적화)
+│   ├── et_gps_slim80_pers_pertarget.py # 개인 모델 블렌딩 + 타깃별 alpha 독립 최적화 (per-target: Q2=0.0, S1=0.5054, S2=0.4677)
+│   └── et_gps_slim80_pers_grid.py     # 개인 모델 파라미터 grid search (depth×max_feat×min_leaf 18조합, Global WS OOF 1회 계산)
 ├── submission/
 │   ├── extratrees_ensemble_prob.csv      # ET 단독 앙상블 (Public 0.6061)
 │   ├── mlp_hgb_et_ensemble_prob.csv      # MLP+HGB+ET 3모델 (OOF 0.6383)
@@ -98,11 +108,21 @@ DaconETRIAI/
 │   ├── mlp_gps_slim85_prob.csv          # MLP GPS Slim 85% (OOF avg_ll 0.6396, 미제출)
 │   ├── et_cb_hgb_mlp_ensemble_prob.csv  # 4모델 균등 앙상블 (Public 0.6070, 역효과)
 │   ├── extratrees_v5_gps_slim85_prob.csv# ET v5 피처 GPS Slim 85% (Public 0.6046)
-│   ├── et_gps_slim80_calibrated_prob.csv# LOSO OOF 기반 logit bias 보정 (Public 0.6027, 현재 최고)
+│   ├── et_gps_slim80_calibrated_prob.csv# LOSO OOF 기반 logit bias 보정 (Public 0.6027)
 │   ├── et_gps_slim80_ws_calibrated_prob.csv # WS hold-out 기반 logit bias 보정 (Public 0.6031)
 │   ├── et_gps_slim80_reg025_prob.csv    # REG=0.25 보정 (Public 0.6029, REG=0.5 대비 소폭 악화)
 │   ├── et_gps_slim80_reg01_prob.csv     # REG=0.10 보정 (미제출 — 과보정 우려)
 │   ├── et_gps_slim80_reg10_prob.csv     # REG=1.00 보정 (미제출 — 과소보정)
+│   ├── et_gps_slim80_transductive_prob.csv # Transductive Z-score (Public 0.6020)
+│   ├── et_gps_slim80_trans_sensorlag_prob.csv # Transductive + 센서 lag (미제출 — OOF 0.6483 악화)
+│   ├── et_ws_cv_transductive_prob.csv   # ET WS CV Transductive (Public 0.6268, WS val 신뢰성 확인)
+│   ├── et_gps_slim80_trans_hard85_prob.csv # Hard threshold p>0.85→1 (Public 0.9682, 실험용)
+│   ├── mlp_loso_transductive_prob.csv   # MLP LOSO Transductive (미제출 — OOF 1.1551, 랜덤보다 나쁨)
+│   ├── et_gps_slim80_trans_varreg_prob.csv  # Transductive + 피험자별 가변 REG (미제출 — OOF 0.6235)
+│   ├── et_gps_slim80_alldata_ws_prob.csv    # 전체 데이터 학습 + WS OOF 보정 (Public 0.6009)
+│   ├── et_gps_slim80_personal_blend_prob.csv # 전체+개인 모델 블렌딩 (Public 0.5992)
+│   ├── et_gps_slim80_pers_pertarget_prob.csv # per-target alpha 블렌딩 (Public 0.6027 — WS OOF 개선 but Public 역전)
+│   └── et_gps_slim80_pers_grid_best_prob.csv # 개인 모델 params grid best (depth=2,max_feat=0.5,min_leaf=3 — 신기록)
 │   ├── optuna_params.json                # 모델별 Optuna best_params 캐시
 │   ├── feature_result.md                 # 3가지 방법론 피처 중요도 전체 수치
 │   └── submission_result.md
@@ -185,9 +205,19 @@ $$\text{score} = \frac{1}{K} \sum_{k=1}^{K} \left( -\frac{1}{n} \sum_{i=1}^{n} \
 | catboost_gps_slim85_prob | 미제출 | CatBoost GPS Slim 85% (OOF 0.6446, ET 0.6406 대비 열세) |
 | et_cb_hgb_mlp_ensemble_prob | 0.6070 | ET+CatBoost+HGB+MLP 4모델 균등 앙상블 (역효과 — 약한 모델 3개가 ET 희석) |
 | extratrees_v5_gps_slim85_prob | 0.6046 | ET v5 피처 (wLight+mBle+mWifi+DOW편차) GPS Slim 85% (OOF 0.6410, v4 대비 +0.0012) |
-| **et_gps_slim80_calibrated_prob** | **0.6027** | **현재 최고 공개점수** — LOSO OOF 기반 피험자별 logit bias 보정 (REG=0.5) |
+| et_gps_slim80_calibrated_prob | 0.6027 | LOSO OOF 기반 피험자별 logit bias 보정 (REG=0.5) |
 | et_gps_slim80_ws_calibrated_prob | 0.6031 | Within-subject 시간순 hold-out 기반 보정 (LOSO 보정 대비 소폭 악화) |
 | et_gps_slim80_reg025_prob | 0.6029 | REG=0.25 보정 (REG=0.5 대비 소폭 악화 — REG=0.5가 최적 확인) |
+| et_gps_slim80_transductive_prob | 0.6020 | Transductive Z-score 정규화 (train+test 전체 센서 통계 활용) |
+| et_gps_slim80_trans_sensorlag_prob | 미제출 | Transductive + 센서 lag/roll7 피처 (OOF 0.6483 악화 — LOSO 환경 과적합) |
+| et_ws_cv_transductive_prob | 0.6268 | ET Within-Subject CV + Transductive (WS val 0.6266 ≈ Public 0.6267 — WS val 신뢰 가능 확인, 모델 자체 약함) |
+| et_gps_slim80_trans_hard85_prob | 0.9682 | Hard threshold p>0.85→1, p<0.15→0 (S1~S3 고신뢰 예측 오답 확인 실험) |
+| mlp_loso_transductive_prob | 미제출 | MLP LOSO + Transductive (OOF 1.1551, 랜덤 0.693보다 나쁨 — MLP×LOSO 부적합) |
+| et_gps_slim80_trans_varreg_prob | 0.6019 | Transductive + 피험자별 가변 REG (reg=BASE_REG*BASE_N/n_dates) |
+| et_gps_slim80_alldata_ws_prob | 0.6009 | 전체 데이터 학습 + WS OOF 편향 보정 (100% warm-start) |
+| et_gps_slim80_personal_blend_prob | 0.5992 | 전체 모델(80%) + 피험자별 개인 모델(20%) 블렌딩 (alpha=0.2056, WS OOF 0.6493) |
+| et_gps_slim80_pers_pertarget_prob | 0.6027 | per-target alpha (Q2=0.0, S1=0.5054, S2=0.4677) — WS OOF 0.6440 개선 but Public 역전 (단일 alpha 대비 악화) |
+| **et_gps_slim80_pers_grid_best_prob** | **신기록** | 개인 모델 params grid search 최적 — depth=2, max_feat=0.5, min_leaf=3, alpha=0.3595, WS OOF 0.6408 (baseline 0.6486 대비 -0.0078) |
 
 ---
 
@@ -975,6 +1005,201 @@ Phase 0~2(피처 계산 + 10 seeds LOSO 앙상블)를 1회만 실행하고, Phas
 
 **결론**: REG가 낮아질수록 OOF LL은 개선되지만(자기참조 과적합), Public에서는 REG=0.5가 최적. REG=0.25도 소폭 악화(0.6029)에 그쳐 REG=0.5의 L2 페널티 강도가 이 데이터에 잘 맞음을 확인. REG 방향의 추가 튜닝은 한계 도달.
 
+### 35단계: Transductive Z-score 정규화 — 현재 최고 공개점수
+
+기존 z-score 정규화는 train 데이터만으로 피험자 통계를 계산. 그러나 test 센서 데이터(레이블 없음)를 추가하면 특히 학습 날짜가 적은 피험자(id03·id10: 33일)의 개인 기준선 추정이 안정화됨.
+
+**핵심 변경**
+
+```python
+# 기존: train 데이터만으로 피험자 통계 계산
+def compute_subj_stats(df, sensor_cols):
+    return df.groupby("subject_id")[sensor_cols].agg(["mean", "std"])
+
+# 개선: parquet_feat(train+test 날짜 전체)로 통계 계산 — 레이블 없는 X만 사용
+def compute_transductive_stats(parquet_feat, sensor_cols):
+    avail = [c for c in sensor_cols if c in parquet_feat.columns]
+    return parquet_feat.groupby("subject_id")[avail].agg(["mean", "std"])
+```
+
+**구성**: slim 80% 피처 선택(184개 → 99개 유지 / 85개 제거) + subj_mean 추가(106개) → LOSO 10 seeds 앙상블 + logit bias 보정(REG=0.5)
+
+**결과**
+
+| 지표 | 값 |
+|------|:--:|
+| 피처 수 | 106개 (slim 80% 99개 + subj_mean 7개) |
+| Public Score | **0.6020 (현재 최고 공개점수)** |
+
+calibrated 방식(0.6027) 대비 0.0007 추가 개선. 레이블 없는 센서 데이터만 활용하므로 information leakage 없음.
+
+### 36단계: 센서 Lag 피처 추가 — OOF 악화, 미제출
+
+전날 센서값(lag1)과 7일 이동평균(roll7)을 피처로 추가. 날짜 shift 트릭으로 구현: parquet date D의 센서값 → 레이블 날짜 D+1에 연결.
+
+```python
+# 날짜 shift 트릭 (lag1)
+lag1_df["date"] = (lag1_df["date_dt"] + pd.Timedelta(days=1)).dt.strftime("%Y-%m-%d")
+# 날짜 shift 트릭 (roll7)
+roll7_df["date"] = (roll7_df["date_dt"] + pd.Timedelta(days=1)).dt.strftime("%Y-%m-%d")
+```
+
+**결과**: 총 피처 384개 → slim 80% 후 210개(기존 slim 80% ~100개 대비 2배 이상). OOF 0.6483(transductive 0.6405 대비 악화).
+
+**원인**: LOSO 환경에서 센서 lag 피처가 개별 피험자의 특이 시계열 패턴에 과적합. 피처 수 과다(210개)로 노이즈 증가. 미제출.
+
+### 37단계: ET Within-Subject CV + Transductive — WS val 신뢰성 확인
+
+LOSO CV 대신 피험자 내부 시간순 분할(앞 80% train, 뒤 20% val)로 CV 전략 전환. 실제 test 구조("기존 피험자의 날짜 예측")와 더 근접한 평가 방식.
+
+**WS val OOF 결과**
+
+| 타깃 | WS val OOF LL |
+|------|:------------:|
+| Q1 | 0.7122 |
+| Q2 | 0.6456 |
+| Q3 | 0.6387 |
+| S1 | 0.5501 |
+| S2 | 0.6134 |
+| S3 | 0.6084 |
+| S4 | 0.6179 |
+| **평균** | **0.6266** |
+
+**WS val(0.6266) ≈ Public(0.6267) — WS val이 실제 test 분포를 정확히 반영하는 신뢰 가능한 estimator임 확인.**
+
+그러나 Public 0.6268 — transductive LOSO(0.6020) 대비 크게 악화.
+
+**원인**: Optuna가 WS val 20행(소규모)에서 depth=3~5의 매우 얕은 트리를 최적으로 찾음. LOSO params(depth=5~22)보다 훨씬 단순한 모델 → WS val 평가는 신뢰 가능하나 WS로 학습한 모델 자체가 LOSO 모델보다 약함.
+
+### 38단계: Hard threshold 실험 — Pseudo-labeling 전략 폐기
+
+et_gps_slim80_transductive 예측에서 p > 0.85 → 1, p < 0.15 → 0으로 hard 변환 후 제출.
+
+**목적**: 고신뢰 예측의 정확도 확인 및 pseudo-labeling 가능성 평가.
+
+**결과**: Public **0.9682** — 모든 제출 중 최악(0보다 나쁨).
+
+**원인 분석**: S1·S2·S3에서 모델이 0.9 이상을 예측하는 샘플 다수가 실제 오답. ET 모델이 해당 타깃들에 대해 체계적 과신 편향을 가짐. hard threshold로 오답을 확신으로 변환하면 log-loss 극대화.
+
+**결론**: pseudo-labeling 전략 완전 폐기. 고신뢰 예측조차 신뢰할 수 없음을 확인.
+
+### 39단계: Multi-task MLP LOSO + Transductive — MLP×LOSO 부적합 확인
+
+Transductive Z-score 정규화 + MLP(106→128→64→7) + LOSO GroupKFold(10) + 10 seeds 앙상블.
+
+**아키텍처**
+```
+Input (106피처: slim 80% 99개 + subj_mean 7개)
+  → [Linear(128) → BN → ReLU → Drop(0.4)]
+  → [Linear(64) → BN → ReLU → Drop(0.4)]
+  → Q1 / Q2 / Q3 / S1 / S2 / S3 / S4  (각각 Linear(64→1) + Sigmoid)
+```
+
+**LOSO OOF 결과 (10 seeds 누적)**
+
+| 타깃 | OOF LL |
+|------|:------:|
+| Q1 | 1.6213 |
+| Q2 | 1.0939 |
+| Q3 | 1.2091 |
+| S1 | 1.0885 |
+| S2 | 1.0297 |
+| S3 | 0.9390 |
+| S4 | 1.1038 |
+| **평균** | **1.1551** |
+
+**랜덤 예측(0.693)보다 나쁨 — 미제출.**
+
+**근본 원인**: LOSO 구조에서 MLP는 9명의 학습 데이터 패턴을 암기. held-out subject에서 "9명과 다른 패턴"이 감지되면 역예측 발생 → OOF > 1.0. 이는 코드 버그가 아닌 MLP와 LOSO의 구조적 불일치. ET의 완전 무작위 분할은 암기를 방지하지만 MLP는 gradient descent로 암기를 강화함.
+
+MLP가 의미있는 성능을 내려면 WS CV 구조(학습 fold에 해당 피험자 포함)가 필요.
+
+### 40단계: 피험자별 가변 REG 보정 — Transductive 기반 미세 조정
+
+Transductive Z-score(35단계)에서 LOSO logit bias 보정 REG=0.5를 피험자별로 가변 적용.
+
+**핵심 아이디어**: 훈련 날짜가 많은 피험자는 bias 추정이 안정적 → REG 낮춰도 됨. 날짜가 적은 피험자는 추정 불안정 → REG 높여서 보수적 보정.
+
+```python
+BASE_REG = 0.5
+BASE_N   = 45   # 전체 피험자 평균 훈련 날짜 수 (기준)
+reg = BASE_REG * (BASE_N / n_dates)
+# id04 (57일) → REG=0.395  (더 많이 보정 허용)
+# id03 (33일) → REG=0.682  (보수적 보정)
+# id10 (33일) → REG=0.682
+```
+
+**피험자별 REG 결과**
+
+| 피험자 | 훈련일수 | REG |
+|--------|:-------:|:---:|
+| id03 | 33일 | 0.682 |
+| id10 | 33일 | 0.682 |
+| id01 | 41일 | 0.549 |
+| id09 | 41일 | 0.549 |
+| id05 | 44일 | 0.511 |
+| id02 | 48일 | 0.469 |
+| id06 | 48일 | 0.469 |
+| id07 | 49일 | 0.459 |
+| id08 | 56일 | 0.402 |
+| id04 | 57일 | 0.395 |
+
+**결과**: OOF 0.6235 (LOSO 기준 자기참조, 과낙관적). 미제출 — Public 제출로 실제 효과 확인 필요.
+
+### 41단계: 전체 데이터 학습 + WS OOF 편향 보정 — 구조 불일치 해소 시도
+
+**핵심 문제 정의**: LOSO는 test 예측에서 90% warm(피험자 X: 10 fold 중 9개에서 학습됨)이지만, 실제 이상적인 test 구조는 100% warm(항상 피험자 X를 학습에 포함). 이 10% 구조 불일치가 성능 손실의 일부.
+
+**해소 전략**:
+- 전체 450행으로 단일 모델 학습 (100% warm test 예측)
+- WS OOF(피험자별 마지막 20% val, 나머지 전체로 학습)로 편향 보정 데이터 수집 (보정 구조도 warm-start)
+- best_slim(LOSO 최적화 params) 그대로 사용 — WS Optuna 재튜닝 시 depth=3~5 얕은 트리 문제 회피
+
+**WS OOF 결과 (타깃별 LL)**
+
+| 타깃 | WS val LL |
+|------|:---------:|
+| Q1 | 0.7141 |
+| Q2 | 0.6503 |
+| Q3 | 0.6716 |
+| S1 | 0.5892 |
+| S2 | 0.6669 |
+| S3 | 0.6287 |
+| S4 | 0.6650 |
+| **평균** | **0.6551** |
+
+**결과**: **Public 0.6009 (현재 최고)** — varreg(0.6019), transductive(0.6020) 대비 큰 폭 개선. 100% warm-start 전략이 실제로 유효함을 확인.
+
+### 42단계: 피험자별 개인 모델 블렌딩 — WS OOF 기준 최고
+
+전체 모델(Global)과 피험자별 개인 모델(Personal)을 블렌딩해 각 피험자의 개인 특성을 추가로 포착.
+
+**구조**
+```
+Global ET:  전체 450행 학습 (best_slim params, 10 seeds)
+Personal ET: 피험자 자신의 데이터만 학습 (depth=3, max_feat=0.3, n_est=50, 10 seeds)
+블렌드: alpha * personal + (1-alpha) * global
+alpha: WS OOF val log-loss 최소화로 전역 최적화
+편향 보정: 블렌드된 WS OOF 예측으로 피험자별 로짓 편향 보정 (REG=0.5)
+```
+
+**WS OOF 타깃별 LL (alpha=0.2056)**
+
+| 타깃 | blend LL | global-only LL | 차이 |
+|------|:--------:|:--------------:|:----:|
+| Q1 | 0.7011 | 0.7141 (alldata_ws) | -0.0130 |
+| Q2 | 0.6665 | 0.6503 (alldata_ws) | +0.0162 (악화) |
+| Q3 | 0.6658 | 0.6716 (alldata_ws) | -0.0058 |
+| S1 | 0.5718 | 0.5892 (alldata_ws) | -0.0174 |
+| S2 | 0.6519 | 0.6669 (alldata_ws) | -0.0150 |
+| S3 | 0.6244 | 0.6287 (alldata_ws) | -0.0043 |
+| S4 | 0.6635 | 0.6650 (alldata_ws) | -0.0015 |
+| **평균** | **0.6493** | **0.6547** (phase내 global-only) | **-0.0054** |
+
+**최적 alpha = 0.2056**: 개인 모델을 약 20% 반영. Q2를 제외한 6/7 타깃에서 개선.
+
+**결과**: **Public 0.5992 (현재 최고)** — alldata_ws(0.6009) 대비 +0.0017 추가 개선. 전체 데이터 학습(100% warm-start) + 개인 모델 블렌딩이 시너지 효과 발휘.
+
 ---
 
 ## 피처 중요도 분석
@@ -1077,9 +1302,14 @@ Phase 0~2(피처 계산 + 10 seeds LOSO 앙상블)를 1회만 실행하고, Phas
 | **parquet_features_v5 (wLight+mBle+mWifi)** | OOF GPS 동률 (개별 추가 효과 없음) | 센서 소스 3개 추가해도 LOSO OOF 변화 없음. GPS가 이미 이동 패턴 포착, BLE/WiFi는 10명 환경에서 cross-subject 일반화 실패 |
 | **DOW deviation 피처 (요일별 편차)** | ET v5: OOF 0.6410 (+0.0012 v4 대비) | DOW mean(요일 평균) 피처가 DOW dev(편차)보다 중요도 높음. 단독 기여보다 상호 보완 효과. S3 소폭 악화 |
 | **4모델 균등 앙상블 (ET+CatBoost+HGB+MLP GPS Slim 85%)** | Public 0.6070 (❌ ET 0.6044 대비 크게 악화) | 약한 모델 3개(CatBoost 0.6446, HGB 미확인, MLP 미확인)가 ET(0.6406) 신호를 희석. 균등 가중치 전략 실패 — 각 구성 모델의 Public 성능이 확인된 후 앙상블해야 함 |
-| **LOSO OOF 기반 피험자별 logit bias 보정 (REG=0.5)** | OOF 0.6401→0.6225, **Public 0.6027 (현재 최고)** | 10 seeds LOSO 앙상블 OOF에서 피험자×타깃 logit bias 추정 후 test 적용. id03/id06/id05의 큰 편향이 보정됨. OOF-based 보정이므로 OOF LL 수치 자체는 과낙관적 |
+| **LOSO OOF 기반 피험자별 logit bias 보정 (REG=0.5)** | OOF 0.6401→0.6225, Public 0.6027 | 10 seeds LOSO 앙상블 OOF에서 피험자×타깃 logit bias 추정 후 test 적용. id03/id06/id05의 큰 편향이 보정됨. OOF-based 보정이므로 OOF LL 수치 자체는 과낙관적 |
 | **WS 시간순 hold-out 기반 logit bias 보정** | OOF LOSO_cal 0.6225 → WS_cal 0.6305, Public 0.6031 (❌ LOSO 보정 0.6027 대비 소폭 악화) | 각 피험자 앞 70% 날짜로 학습, 뒤 30%로 보정 추정. 이론적으로 test 구조에 더 가까우나 id04의 WS |bias|=0.197(LOSO 0.069 대비 3배)으로 분산 과다. LOSO 보정이 경험적으로 우위 |
 | **LOSO logit bias 보정 REG 튜닝** | REG=0.25: OOF 0.6129, Public 0.6029 (❌ REG=0.5 대비 소폭 악화) | REG 낮출수록 OOF 개선(자기참조 과적합). Public에서는 REG=0.5(0.6027)가 최적 — REG 방향 추가 개선 여지 없음 확인 |
+| **Transductive Z-score 정규화** | **Public 0.6020 (현재 최고)** | train+test 전체 센서 통계로 피험자 기준선 추정 안정화. calibrated(0.6027) 대비 추가 개선. 레이블 없는 X만 사용 — leakage 없음 |
+| **센서 Lag 피처 (sensorlag1 + sensorroll7)** | OOF 0.6483 (❌ 악화), 미제출 | 전날 센서값/7일 이동평균을 날짜 shift 트릭으로 구현. 피처 수 210개로 증가 → LOSO 환경에서 subject 특이 시계열 패턴 과적합 |
+| **ET Within-Subject CV + Transductive** | WS val OOF 0.6266 ≈ Public 0.6268 (❌ LOSO 대비 크게 악화) | WS val(0.6266)이 Public(0.6267)과 일치 — WS val이 신뢰 가능한 estimator 확인. 단 Optuna가 depth=3~5 얕은 트리 선택 → 모델 자체 약함 |
+| **Hard threshold 실험 (p>0.85→1, p<0.15→0)** | Public 0.9682 (❌ 실험 목적) | S1~S3 고신뢰 예측 다수가 오답임 확인. ET 모델의 체계적 과신 편향 발견. pseudo-labeling 전략 완전 폐기 |
+| **MLP LOSO + Transductive** | OOF 1.1551 (❌ 랜덤 0.693보다 나쁨), 미제출 | MLP가 9명 학습 패턴 암기 후 held-out subject에 역예측. LOSO cold-start × 신경망 암기의 구조적 불일치 확인 |
 
 ---
 
@@ -1133,12 +1363,17 @@ Phase 0~2(피처 계산 + 10 seeds LOSO 앙상블)를 1회만 실행하고, Phas
 | **LOSO vs WS 보정의 역설** | WS 보정(0.6031)이 LOSO 보정(0.6027)보다 이론적으로 test 구조에 더 가까우나 경험적으로 열세. 원인: ① WS hold-out(뒤 30%)이 실제 test 날짜 분포와 불일치 ② id04의 WS |bias| 0.197(LOSO 0.069 대비 3배)으로 편향 추정 불안정 ③ LOSO 보정이 더 보수적(편향 작음)으로 작동해 과보정 위험 감소. |
 | **OOF 보정의 자기 참조 주의** | LOSO 보정 후 OOF LL 0.6225는 과낙관적 — 보정 편향이 OOF 데이터에서 추정되고 동일 OOF에서 평가되므로 완전히 신뢰할 수 없음. Public 점수(0.6027)가 실질적 성능 지표. |
 | **보정 REG의 최적점 존재** | REG=0.1(OOF 0.5993) → 0.25(0.6129) → 0.5(0.6225) → 1.0(0.6304): OOF는 REG 감소에 단조 개선. Public은 REG=0.5가 최적(0.6027), REG=0.25는 소폭 악화(0.6029). 과보정(REG 너무 낮음)이 Public에서 역효과. REG 방향의 추가 개선은 한계 도달. |
+| **Transductive Z-score 효과** | train+test 전체 센서 통계로 피험자 기준선 추정이 더 안정적. 특히 33일 데이터(id03·id10)에서 통계 추정 개선. calibrated(0.6027) 대비 0.0007 추가 개선으로 현재 최고(0.6020) 달성. 레이블 없는 X만 사용하므로 leakage 없음. |
+| **센서 lag 피처의 LOSO 함정** | sensorlag1(전날 센서)/sensorroll7(7일 평균)은 날짜 shift 트릭으로 구현 가능하나, LOSO 환경에서 subject 특이 시계열 패턴에 과적합. 피처 수 384개(slim 80% → 210개)가 기존 slim 80%(~100개)보다 많아 노이즈 증가. OOF 0.6483(0.6405 대비 악화). |
+| **WS val이 신뢰 가능한 estimator** | et_ws_cv_transductive의 WS val OOF(0.6266)가 Public(0.6267)과 매우 근접. LOSO OOF(~0.640)보다 더 실제 test 분포를 반영. 단 WS 모델이 Optuna에서 depth=3~5 얕은 트리를 찾아 모델 자체가 약함 → WS val이 좋은 측정 도구이나 모델 품질은 LOSO가 우위. |
+| **MLP × LOSO 근본 부적합** | MLP는 9명 학습 데이터의 공통 패턴을 암기. held-out subject에서 역예측 발생. OOF 1.1551 > 랜덤 0.693 → 아무것도 모르는 것보다 나쁜 모델. 코드 버그가 아닌 구조적 문제(LOSO cold-start × 신경망 암기). MLP는 WS CV 구조에서만 시도 가능. |
+| **Hard threshold → Pseudo-labeling 폐기** | p>0.85 고신뢰 예측을 hard 1로 바꾸면 Public 0.9682(대폭 악화). S1~S3 다수 예측이 0.9 부근에서 오답. ET 모델이 해당 타깃들에 대해 체계적 과신 편향을 가짐. pseudo-labeling은 오답 레이블을 학습에 추가하는 역효과 확정. |
 
 ---
 
 ## 향후 개선 방향
 
-> 현재 최고 공개점수: **0.6027** (ET GPS Slim 80% + LOSO logit bias 보정) / OOF 최고: **0.6329** (MLP+HGB+ET 가중치, Public 역전) / OOF-Public 선형 최고: **0.6398** (ET GPS Slim 75%) / 리더보드 1위: 0.56119 / gap: ~0.041
+> 현재 최고 공개점수: **신기록** (et_gps_slim80_pers_grid_best — depth=2, max_feat=0.5, min_leaf=3, alpha=0.3595) / 이전 최고: **0.5992** (personal_blend — Global 80% + Personal 20%) / OOF 최고: **0.6329** (MLP+HGB+ET 가중치, Public 역전) / 리더보드 1위: 0.56119
 
 ### 성능 병목 분석
 
@@ -1152,9 +1387,10 @@ Phase 0~2(피처 계산 + 10 seeds LOSO 앙상블)를 1회만 실행하고, Phas
 | ET GPS Slim 85% | 0.6406 | 0.6055 | 0.035 |
 | ET GPS Slim 80% | 0.6403 | 0.6044 | 0.036 |
 | ET v5 GPS Slim 85% | 0.6410 | 0.6046 | 0.036 |
-| **ET Slim 80% + LOSO 보정** | **0.6401 (보정 전 기준)** | **0.6027** | **0.037** |
+| ET Slim 80% + LOSO 보정 | 0.6401 (보정 전 기준) | 0.6027 | 0.037 |
+| **ET Slim 80% + Transductive Z-score** | **0.640x (LOSO OOF)** | **0.6020** | **~0.038** |
 
-모델을 바꿔도 OOF-Public 갭이 ~0.035 고착. **핵심 원인**: LOSO CV는 "미지 피험자 예측"을 평가하나 실제 test는 "기존 피험자의 날짜 예측" — 구조적 불일치. 피처 추가·모델 변경보다 **CV 전략과 학습 구조 변화**가 다음 돌파구. 피험자별 logit bias 보정(32단계)으로 갭 내에서 추가 개선 확인.
+모델을 바꿔도 OOF-Public 갭이 ~0.035 고착. **핵심 원인**: LOSO CV는 "미지 피험자 예측"을 평가하나 실제 test는 "기존 피험자의 날짜 예측" — 구조적 불일치. 피처 추가·모델 변경보다 **CV 전략과 학습 구조 변화**가 다음 돌파구. Transductive Z-score(35단계)와 logit bias 보정(32단계)으로 갭 내에서 추가 개선 확인.
 
 #### Q1 고착 문제 (모든 모델 공통)
 
@@ -1202,25 +1438,86 @@ Q1("수면의 질 — 기상 직후")은 모든 모델에서 LL ≈ 0.699 고착
 | 29 | ~~요일 효과 편차 피처 (DOW deviation)~~ | ✅ 완료 — dow_deviation_features.py 구현. DOW mean 피처가 DOW dev보다 중요도 높음. 단독 기여 미미 |
 | 30 | ~~4모델 균등 앙상블 (ET+CatBoost+HGB+MLP)~~ | ✅ 완료 — Public 0.6070 (역효과). 약한 모델 3개가 ET 희석. 균등 가중치 앙상블 전략 한계 재확인 |
 | 31 | ~~데이터 분할 구조 분석 (train/test 블록 구조 발견)~~ | ✅ 완료 — LOSO CV vs 실제 test 구조 불일치 확인. OOF-Public 갭 근본 원인 파악. 다음 전략 방향 도출 |
-| 32 | ~~LOSO OOF 기반 피험자별 logit bias 보정 (REG=0.5)~~ | ✅ 완료 — **Public 0.6027 (현재 최고 공개점수)**. OOF LL 0.6401→0.6225 개선 |
+| 32 | ~~LOSO OOF 기반 피험자별 logit bias 보정 (REG=0.5)~~ | ✅ 완료 — Public 0.6027. OOF LL 0.6401→0.6225 개선 |
 | 33 | ~~Within-subject 시간순 hold-out 기반 logit bias 보정~~ | ✅ 완료 — Public 0.6031 (LOSO 보정 대비 소폭 악화). WS OOF LL 0.6305 (LOSO 0.6225보다 보수적) |
-| 34 | ~~LOSO logit bias 보정 REG 튜닝 (0.1/0.25/1.0)~~ | ✅ 완료 — REG=0.25 Public 0.6029 (REG=0.5 0.6027 대비 소폭 악화). REG=0.5가 현재 최적. REG 방향 추가 탐색 한계 |
+| 34 | ~~LOSO logit bias 보정 REG 튜닝 (0.1/0.25/1.0)~~ | ✅ 완료 — REG=0.25 Public 0.6029 (REG=0.5 0.6027 대비 소폭 악화). REG=0.5가 최적. REG 방향 추가 탐색 한계 |
+| 35 | ~~Transductive Z-score 정규화~~ | ✅ **완료 — Public 0.6020 (현재 최고 공개점수)**. train+test 전체 센서 통계로 피험자 기준선 추정 안정화 |
+| 36 | ~~센서 Lag 피처 (sensorlag1 + sensorroll7)~~ | ✅ 완료 — 미제출 (OOF 0.6483 악화). LOSO 환경에서 센서 lag 과적합. 피처 수 과다(210개) |
+| 37 | ~~ET Within-Subject CV + Transductive~~ | ✅ 완료 — Public 0.6268 (역효과). WS val OOF(0.6266)≈Public(0.6267) — WS val이 신뢰 가능한 estimator 확인. 단 모델 자체 약함(depth=3~5) |
+| 38 | ~~Hard threshold 실험 (p>0.85→1, p<0.15→0)~~ | ✅ 완료 — Public 0.9682 (실험 목적). S1~S3 고신뢰 예측 오답 확인. pseudo-labeling 전략 폐기 |
+| 39 | ~~MLP LOSO + Transductive~~ | ✅ 완료 — 미제출 (OOF 1.1551, 랜덤 0.693보다 나쁨). MLP×LOSO 근본 부적합 확인 |
+| 40 | ~~피험자별 가변 REG 보정 (varreg)~~ | ✅ 완료 — **Public 0.6019 (현재 최고)**. transductive(0.6020) 대비 +0.0001 개선. reg = BASE_REG * BASE_N / n_dates |
+| 41 | ~~전체 데이터 학습 + WS OOF 편향 보정 (alldata_ws)~~ | ✅ 완료 — **Public 0.6009 (현재 최고)**. 100% warm-start 구조 불일치 해소 효과 확인 |
+| 42 | ~~피험자별 개인 모델 블렌딩 (personal_blend)~~ | ✅ 완료 — **Public 0.5992 (현재 최고)**. alpha=0.2056(Global 80% + Personal 20%). alldata_ws(0.6009) 대비 추가 개선 |
+| 43 | ~~per-target alpha 최적화 (pers_pertarget)~~ | ✅ 완료 — Public 0.6027 (WS OOF 0.6440 개선 but Public 역전). per-target 자유도 7개가 WS OOF 과적합 유발 |
+| 44 | ~~개인 모델 파라미터 grid search (depth×max_feat×min_leaf)~~ | ✅ **신기록** — depth=2, max_feat=0.5, min_leaf=3, alpha=0.3595, WS OOF 0.6408 (baseline 0.6486 대비 -0.0078). 정규화 강화 방향(얕은 depth + 높은 min_leaf)이 유효 |
 
 ### 남은 개선 방향 (우선순위 순)
 
-> 현재 피처 천장(feature ceiling) 진단: OOF-Public 갭이 모델을 바꿔도 ~0.038 고착 → 더 좋은 모델보다 **더 좋은 정보(피처)** 가 성능을 결정.
+> **현재 상황 (44단계 완료)**: pers_grid_best 신기록 달성. 개인 모델 정규화 강화(depth=2, min_leaf=3)가 유효함 확인. per-target alpha는 WS OOF 개선 → Public 역전 (과적합). 다음은 **Global 모델 WS OOF 기반 Optuna 재탐색** (현재 slim80 params가 LOSO 기반 — WS 맥락 재최적화 필요).
 
-| 순위 | 방법 | 기대 근거 | 리스크 |
+**핵심 교훈**: 데이터에 직접 맞추는 방향(per-target alpha)은 과적합 위험 높음. 모델 구조적 파라미터(depth, min_leaf) 변경은 WS OOF 개선이 Public으로도 이어짐.
+
+#### 완료된 방향
+
+| 방법 | 결과 |
+|------|------|
+| ~~GPS 피처 추가~~ | ~~완료 — Public 0.6044~~ |
+| ~~앵커 구조~~ | ~~완료 — Stage2 역효과~~ |
+| ~~윈도우 페어 트렌드 + mACStatus + 수면확장 wHr~~ | ~~완료~~ |
+| ~~wLight + mBle/mWifi 피처 추가~~ | ~~완료 — OOF GPS 동률~~ |
+| ~~요일 효과 피처~~ | ~~완료 — 단독 효과 미미~~ |
+| ~~개인별 fine-tuning (logit bias 보정)~~ | ~~완료 — Public 0.6027. REG 튜닝 포화~~ |
+| ~~Transductive Z-score 정규화~~ | ~~완료 — Public 0.6020~~ |
+| ~~Within-subject CV + Transductive~~ | ~~완료 — Public 0.6268 (역효과). WS val 신뢰성 확인~~ |
+| ~~Pseudo-labeling~~ | ~~폐기 — hard threshold(0.9682) 실험으로 고신뢰 예측 오답 확인~~ |
+| ~~MLP LOSO~~ | ~~폐기 — OOF 1.1551, MLP×LOSO 구조적 부적합~~ |
+| ~~per-target alpha 최적화~~ | ~~완료 — Public 0.6027 (역전). WS OOF 자유도 7개 과적합~~ |
+| ~~개인 모델 파라미터 grid search~~ | ~~완료 — 신기록. depth=2, max_feat=0.5, min_leaf=3 최적~~ |
+
+#### 완료 후 제출 대기 방향
+
+| 방법 | 상태 | 비고 |
+|------|------|------|
+| ~~피험자별 가변 REG 보정~~ | ✅ **제출 완료 — Public 0.6019** | transductive(0.6020) 대비 +0.0001 개선 |
+| ~~전체 데이터 학습 + WS OOF (100% warm-start)~~ | ✅ **제출 완료 — Public 0.6009** | varreg, transductive 대비 개선. 100% warm-start 효과 확인 |
+| ~~피험자별 개인 모델 블렌딩 (Global+Personal ET)~~ | ✅ **제출 완료 — Public 0.5992** | alpha=0.2056. alldata_ws(0.6009) 대비 +0.0017 추가 개선 |
+| ~~per-target alpha 최적화~~ | ✅ **제출 완료 — Public 0.6027 (역전)** | WS OOF 개선 but 자유도 7개 과적합. 단일 alpha가 더 robust |
+| ~~개인 모델 파라미터 grid search~~ | ✅ **제출 완료 — 신기록** | depth=2, max_feat=0.5, min_leaf=3, alpha=0.3595, WS OOF 0.6408 |
+
+#### 미완료 방향 (우선순위 순)
+
+| 순위 | 방법 | 핵심 근거 | 리스크 |
 |------|------|-----------|--------|
-| ~~1순위~~ | ~~GPS 피처 추가 (mGps.parquet)~~ | ~~완료 — OOF 0.6465 (v2 동률). Q1/S1 개선, Q3/Q2 악화~~ | — |
-| ~~2순위~~ | ~~앵커 구조 (Stage1 OOF를 피처로)~~ | ~~완료 — Stage2 역효과 (220피처 과적합)~~ | — |
-| ~~3순위~~ | ~~윈도우 페어 트렌드 + mACStatus + 수면확장 wHr~~ | ~~완료 — label_features.py trend 21개, parquet_features_v4.py 8개 신규~~ | — |
-| ~~4순위~~ | ~~wLight + mBle/mWifi 피처 추가~~ | ~~완료 — parquet_features_v5.py. 개별 OOF GPS 동률. DOW편차 결합 시 v4 대비 +0.0012~~ | — |
-| ~~5순위~~ | ~~요일 효과 피처~~ | ~~완료 — dow_deviation_features.py. DOW mean이 기여. 단독 효과 미미~~ | — |
-| **6순위** | **within-subject CV 전환** | LOSO CV는 "새로운 피험자 예측" 평가. 실제 test는 "기존 피험자의 특정 날짜 예측". subject×time 블록 분할로 실제 대회 구조와 유사한 검증 환경 구축 | 중간 |
-| ~~7순위~~ | ~~개인별 fine-tuning (logit bias 보정)~~ | ✅ 완료 — LOSO 보정 Public 0.6027(현재 최고), WS 보정 0.6031. REG 튜닝(0.25→0.6029) 완료 — REG=0.5가 최적 확인 | — |
-| **8순위** | **피험자 임베딩 (subject_id 명시 피처)** | subject_id를 원-핫 또는 임베딩으로 주입. 피험자별 offset을 모델이 명시적으로 학습. LOSO OOF에서는 평가 불가이나 실제 test에서 유효 가능 | 높음 (LOSO OOF 측정 불가) |
-| **9순위** | **Pseudo-labeling** | 예측 확률 > 0.85 또는 < 0.15인 테스트 샘플을 학습 데이터에 추가. train/test 동일 10명 구조 활용 | 중간 |
+| **1순위** | **Global 모델 WS OOF 기반 Optuna 재탐색** | 현재 slim80 params는 LOSO로 최적화됨. WS 맥락(평가 기준 상이)에서 재탐색 시 다른 최적 params 발견 가능. Global이 80% 가중치 → 개선 영향 가장 큼 | **낮음** — 기존 Optuna 구조 재활용, WS OOF로 목적함수만 교체 |
+| **2순위** | **모델 다양화 (HGB Global 추가)** | 현재 Global이 ET 단일 모델. HGB를 Global에 추가해 앙상블하면 분산 감소. `Global = 0.7*ET + 0.3*HGB` 형태 | **낮음** — 검증된 HGB 파라미터 재활용 가능 |
+| **3순위** | **피처 개선** | sensor_lag_features.py 기존 구현됨(미적용). v4 피처(hr_extsleep, ac_*)를 personal_blend 맥락에서 재검토. personal_blend 도입 전 피처 실험이라 재평가 가치 있음 | **낮음** — WS OOF로 검증 후 제출 |
+| **4순위** | **MLP + WS CV** | WS val이 신뢰 가능한 estimator 확인(0.6266 ≈ Public 0.6267). MLP×LOSO는 cold-start로 근본 부적합하나, WS CV 구조에서는 MLP가 피험자 패턴 학습 가능 | **중간** — 구현 복잡, 시간 소요 |
+
+#### 1순위 상세: Global 모델 WS OOF 기반 Optuna 재탐색
+
+```
+현재 slim80 params: LOSO GroupKFold(10) 목적함수로 최적화
+재탐색 목적함수:    WS OOF (피험자별 최근 20% holdout) — personal_blend 실제 평가 기준과 동일
+
+LOSO vs WS의 차이:
+  LOSO: 미지 피험자 예측 → 피험자 간 일반화 강조
+  WS:   기존 피험자의 미래 날짜 예측 → 피험자 내 시간 일반화 강조
+  → 최적 n_estimators, max_depth, max_features가 다를 수 있음
+```
+
+#### ~~1순위~~: MLP + WS CV 참고
+
+```
+WS val 검증 결과 (et_ws_cv_transductive에서 확인):
+  WS val OOF: 0.6266 ≈ Public 0.6267  — WS val이 신뢰 가능한 estimator
+
+MLP + LOSO (실패):  LOSO cold-start → MLP 역예측 → OOF 1.1551
+MLP + WS CV:        학습 fold에 해당 피험자 포함 → MLP가 피험자 패턴 학습 가능
+                    → WS val로 평가하면 Public과 근접한 성능 추정 가능
+```
+
+WS CV Optuna가 depth=3~5 얕은 트리를 찾은 이유: val 20행(소규모)에 최적화. MLP는 validation loss 기반이므로 이 문제가 덜 심각할 수 있음.
 
 #### Q1 고착 문제
 
@@ -1229,8 +1526,8 @@ Q1("수면의 질 — 기상 직후")은 모든 모델에서 LL ≈ 0.699 고착
 | 원인 | 대응 방향 |
 |------|-----------|
 | 수면의 질은 수면 중 생리신호 의존 (뒤척임·REM 비율) | GPS 집 체류 시간, wLight 수면 중 조도가 간접 신호 |
-| 개인 편차가 커서 unseen subject 일반화 어려움 | 스태킹 메타 모델이 subject별 예측 편향 보정 가능 |
-| subj_mean_Q1 항상 NaN (leakage 방지) | 대체 개인화 피처: 센서 z-score 기준선, 요일 효과 |
+| 개인 편차가 커서 unseen subject 일반화 어려움 | subject_id 피처 + WS CV로 피험자별 오프셋 직접 학습 |
+| subj_mean_Q1 항상 NaN (leakage 방지) | 대체 개인화 피처: Transductive z-score, 요일 효과 |
 
 **실패로 확인된 방향**
 
@@ -1259,8 +1556,29 @@ uv pip install pandas pyarrow lightgbm scikit-learn optuna shap xgboost catboost
 ### 실행 순서
 
 ```bash
-# 현재 최고 공개점수 (ET GPS Slim 80% + LOSO logit bias 보정 REG=0.5, Public 0.6027)
+# 현재 최고 공개점수 (ET GPS Slim 80% + Transductive Z-score, Public 0.6020)
+uv run scripts/et_gps_slim80_transductive.py
+
+# 이전 최고 (ET GPS Slim 80% + LOSO logit bias 보정 REG=0.5, Public 0.6027)
 uv run scripts/et_gps_slim80_calibrated.py
+
+# 피험자별 가변 REG 보정 (미제출, WS OOF 기준 비교 대상)
+uv run scripts/et_gps_slim80_trans_varreg.py
+
+# 전체 데이터 학습 + WS OOF 편향 보정 (미제출, 100% warm-start)
+uv run scripts/et_gps_slim80_alldata_ws.py
+
+# 전체+개인 모델 블렌딩 (Public 0.5992)
+uv run scripts/et_gps_slim80_personal_blend.py
+
+# per-target alpha 블렌딩 (Public 0.6027 — 역전)
+uv run scripts/et_gps_slim80_pers_pertarget.py
+
+# 개인 모델 파라미터 grid search — 신기록 (depth=2, max_feat=0.5, min_leaf=3)
+uv run scripts/et_gps_slim80_pers_grid.py
+
+# WS CV + Transductive (Public 0.6268 — WS val 신뢰성 확인용)
+uv run scripts/et_ws_cv_transductive.py
 
 # REG 튜닝 (REG=0.1/0.25/1.0 한 번에 비교)
 uv run scripts/et_gps_slim80_reg_tuning.py

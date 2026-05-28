@@ -10,7 +10,7 @@
 | lgbm_catboost_ensemble_v3_prob | 0.6142 |
 | lgbm_catboost_weighted_prob | 0.6195 |
 | lgbm_catboost_et_ensemble_prob | 0.6146 |
-| extratrees_ensemble_prob | **0.6061** |
+| extratrees_ensemble_prob | 0.6061 |
 | hgb_et_ensemble_prob | 0.6103 |
 | hgb_et_xt_ensemble_prob | 0.6078 |
 | mlp_hgb_et_ensemble_prob | 0.6062 |
@@ -32,3 +32,17 @@
 | et_gps_slim80_reg025_prob | 0.6029453794 |
 | et_gps_slim80_reg01_prob | 미제출 |
 | et_gps_slim80_reg10_prob | 미제출 |
+| et_gps_slim80_transductive_prob | 0.6020864059 |
+| et_gps_slim80_trans_sensorlag_prob | 미제출 (OOF 0.6483, 악화) |
+| et_ws_cv_transductive_prob | 0.6267950764 |
+| et_gps_slim80_trans_hard85_prob | 0.9681811619 |
+| mlp_loso_transductive_prob | 미제출 (OOF 1.1551, 랜덤보다 나쁨) |
+| et_gps_slim80_trans_hard85_prob | 0.9681811619 |
+| et_gps_slim80_trans_varreg_prob | 0.6019247537 |
+| et_gps_slim80_alldata_ws_prob | 0.6009226938 |
+| et_gps_slim80_personal_blend_prob | 0.5992275974 |
+| et_gps_slim80_pers_pertarget_prob | 0.6027042926 |
+| et_gps_slim80_pers_grid_best_prob | 0.598867734 |
+| et_gps_slim80_global_ws_optuna_prob | 0.599952318 |
+| lgb_gps_slim80_personal_blend_prob | 0.607939536 |
+| et_lgb_ensemble_prob | 0.5982497695 |
