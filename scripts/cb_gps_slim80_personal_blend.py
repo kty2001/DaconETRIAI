@@ -46,7 +46,7 @@ WS_SEED       = 42
 VAL_RATIO     = 0.20
 CALIB_REG     = 0.5
 BIAS_BOUND    = 2.0
-N_TRIALS      = 30
+N_TRIALS      = 25
 
 # Feature importance phase: ET LOSO params
 FIMP_KEY = "extratrees_gps"
@@ -80,9 +80,9 @@ CB_FIXED = {
 
 def suggest_params(trial):
     return {
-        "depth":             trial.suggest_int("depth",    4,  8),
-        "iterations":        trial.suggest_int("iterations", 200, 1200, step=50),
-        "learning_rate":     trial.suggest_float("learning_rate",  0.02, 0.2, log=True),
+        "depth":             trial.suggest_int("depth",    4,  6),
+        "iterations":        trial.suggest_int("iterations", 150, 600, step=50),
+        "learning_rate":     trial.suggest_float("learning_rate",  0.03, 0.2, log=True),
         "min_data_in_leaf":  trial.suggest_int("min_data_in_leaf", 3, 25),
         "l2_leaf_reg":       trial.suggest_float("l2_leaf_reg",    1.0, 30.0, log=True),
         "subsample":         trial.suggest_float("subsample",      0.5, 1.0),
@@ -330,13 +330,18 @@ def main():
 
     # ── Phase 3: Optuna (CB WS OOF) ──
     cached = load_params(PARAMS_KEY)
-    if cached:
+    # 타깃별 중간 저장을 지원하므로 부분 캐시도 활용
+    partial_cached = cached or {}
+    missing = [t for t in TARGETS if t not in partial_cached]
+
+    if not missing:
         print(f"\n=== Phase 3: Optuna 캐시 로드 ({PARAMS_KEY}) ===", flush=True)
-        cb_params = cached
+        cb_params = partial_cached
     else:
+        cb_params = dict(partial_cached)
         print(f"\n=== Phase 3: Optuna CB WS OOF ({N_TRIALS} trials/target) ===", flush=True)
-        cb_params = {}
-        for t in TARGETS:
+        print(f"  남은 타깃: {missing}", flush=True)
+        for t in missing:
             cols_t  = ws_cols[t]
             cat_idx = get_cat_idx(cols_t)
             def objective(trial, _t=t, _cols=cols_t, _cat=cat_idx):
@@ -350,7 +355,7 @@ def main():
                     if len(np.unique(y_tr)) < 2:
                         all_y_true.extend(ws_cache[sid]["y_val"][_t].tolist())
                         all_y_pred.extend([float(y_tr.mean())] * len(ws_cache[sid]["y_val"][_t]))
-                        continue
+                        return log_loss(all_y_true, all_y_pred, labels=[0, 1])
                     model = CatBoostClassifier(**{**CB_FIXED, **params, "random_seed": WS_SEED})
                     model.fit(X_tr_t.fillna(tr_med), y_tr, cat_features=_cat)
                     preds = model.predict_proba(X_val_t.fillna(tr_med))[:, 1]
@@ -359,11 +364,12 @@ def main():
                 return log_loss(all_y_true, all_y_pred, labels=[0, 1])
 
             study = optuna.create_study(direction="minimize")
-            study.optimize(objective, n_trials=N_TRIALS, show_progress_bar=False)
+            # 타깃당 최대 300초 제한 (느린 파라미터 조합 방지)
+            study.optimize(objective, n_trials=N_TRIALS, timeout=300, show_progress_bar=False)
             cb_params[t] = study.best_params
             print(f"  {t}: best LL={study.best_value:.4f}  {study.best_params}", flush=True)
-
-        save_params(PARAMS_KEY, cb_params)
+            # 타깃별 중간 저장 (크래시 복구용)
+            save_params(PARAMS_KEY, cb_params)
 
     # ── Phase 4: WS OOF (Global CB + Personal ET) ──
     print("\n=== Phase 4: WS OOF (Global CB + Personal ET) ===", flush=True)

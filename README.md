@@ -82,7 +82,32 @@ DaconETRIAI/
 │   ├── et_gps_slim80_alldata_ws.py       # 전체 데이터 학습 + WS OOF 편향 보정 (100% warm-start, 구조 불일치 해소)
 │   ├── et_gps_slim80_personal_blend.py  # 전체 모델 + 피험자별 개인 모델 블렌딩 (Global+Personal ET, alpha WS OOF 최적화)
 │   ├── et_gps_slim80_pers_pertarget.py # 개인 모델 블렌딩 + 타깃별 alpha 독립 최적화 (per-target: Q2=0.0, S1=0.5054, S2=0.4677)
-│   └── et_gps_slim80_pers_grid.py     # 개인 모델 파라미터 grid search (depth×max_feat×min_leaf 18조합, Global WS OOF 1회 계산)
+│   ├── et_gps_slim80_pers_grid.py     # 개인 모델 파라미터 grid search (depth×max_feat×min_leaf 18조합, Global WS OOF 1회 계산)
+│   ├── lgb_gps_slim80_personal_blend.py # LGB GPS Slim 80% + Personal Blend (WS OOF Optuna 50 trials, Public 0.6079)
+│   ├── cb_gps_slim80_personal_blend.py  # CB GPS Slim 80% + Personal Blend (depth 4-6, iterations 150-600, WS OOF 0.6485)
+│   ├── xgb_gps_slim80_personal_blend.py # XGB GPS Slim 80% + Personal Blend (WS OOF 0.6120, 미제출)
+│   ├── ensemble_et_lgb_cb.py           # ET+LGB+CB 3-way 앙상블 (1:1:1 및 2:1:1)
+│   ├── ensemble_et_xgb.py             # ET+XGB 앙상블 (1:1, 1:2, 3-way, 4-way)
+│   ├── whr_variability_features.py    # wHr 수면 심박 변동성 피처 (IQR/p10/p90/within_std/night_dip 등 7개)
+│   ├── et_gps_whrvar_slim80_personal_blend.py # ET GPS + wHr변동성 Slim 80% Personal Blend (WS OOF 0.6486, wHr 0/7 선택)
+│   ├── et_gps_whrvar_slim80_hgbpers_blend.py  # ET Global + HGB 개인 모델 블렌딩 (WS OOF 0.6508, alpha=0.0977)
+│   ├── rolling_features.py            # 피험자별 일별 피처 이동평균/delta 빌더 (ma3/ma7/delta3, 19개 기준 -> 57개)
+│   ├── et_gps_rolling_slim80_personal_blend.py # ET GPS + Rolling Slim 80% Personal Blend (WS OOF 0.6443, 22/57 선택)
+│   ├── hgb_gps_rolling_slim80_personal_blend.py # HGB GPS + Rolling Slim 80% Personal Blend (WS OOF 0.6204)
+│   ├── et_fwdlabel_slim80_personal_blend.py   # ET GPS + 역방향 시간 피처(fwd_lag1/roll7/roll14) + Personal Blend (WS OOF 0.6357, 21/21 fwd 선택)
+│   ├── et_gps_slim80_seasonal_blend.py       # ET GPS Slim 80% + Seasonal Re-weight (Jun-Jul x2.0) + Personal Blend (WS OOF 0.6504)
+│   ├── lgb_gps_slim80_seasonal_blend.py      # LGB GPS Slim 80% + Seasonal Re-weight + Personal Blend
+│   ├── xgb_gps_slim80_seasonal_blend.py      # XGB GPS Slim 80% + Seasonal Re-weight + Personal Blend
+│   ├── cb_gps_slim80_seasonal_blend.py       # CB GPS Slim 80% + Seasonal Re-weight + Personal Blend (WS OOF 0.6485)
+│   ├── hgb_gps_slim80_seasonal_blend.py      # HGB GPS Slim 80% + Seasonal Re-weight + Personal Blend (WS OOF 0.6249)
+│   ├── ensemble_seasonal_5way.py             # ET+LGB+XGB+CB+HGB 5모델 Seasonal 앙상블 (29가지 조합)
+│   ├── et_gps_slim80_summer_holdout_blend.py # ET GPS Slim 80% + Summer Holdout Val (Jun-Jul=val, Oct-Nov=train, id04/id05 WS fallback)
+│   ├── lgb_gps_slim80_summer_holdout_blend.py # LGB GPS Slim 80% + Summer Holdout Val
+│   ├── xgb_gps_slim80_summer_holdout_blend.py # XGB GPS Slim 80% + Summer Holdout Val
+│   ├── ensemble_summer_holdout.py            # Seasonal 3-way + Summer Holdout 앙상블 (63가지 조합)
+│   ├── et_gps_slim80_rolling_whr_seasonal_blend.py  # ET GPS + Rolling(ma3/ma7/delta3) + WHR변동성 + Seasonal (WS OOF 0.6427, 136피처)
+│   ├── et_gps_slim80_pertarget_seasonal_blend.py    # ET GPS Slim 80% 타깃별 독립 피처 선택 + Seasonal (WS OOF 0.6398)
+│   └── et_gps_slim80_density_blend.py        # ET GPS Slim 80% + Density Ratio Weighting (P(test|x)/P(train|x), WS OOF 0.6470)
 ├── submission/
 │   ├── extratrees_ensemble_prob.csv      # ET 단독 앙상블 (Public 0.6061)
 │   ├── mlp_hgb_et_ensemble_prob.csv      # MLP+HGB+ET 3모델 (OOF 0.6383)
@@ -122,7 +147,27 @@ DaconETRIAI/
 │   ├── et_gps_slim80_alldata_ws_prob.csv    # 전체 데이터 학습 + WS OOF 보정 (Public 0.6009)
 │   ├── et_gps_slim80_personal_blend_prob.csv # 전체+개인 모델 블렌딩 (Public 0.5992)
 │   ├── et_gps_slim80_pers_pertarget_prob.csv # per-target alpha 블렌딩 (Public 0.6027 — WS OOF 개선 but Public 역전)
-│   └── et_gps_slim80_pers_grid_best_prob.csv # 개인 모델 params grid best (depth=2,max_feat=0.5,min_leaf=3 — 신기록)
+│   ├── et_gps_slim80_pers_grid_best_prob.csv # 개인 모델 params grid best (depth=2,max_feat=0.5,min_leaf=3)
+│   ├── lgb_gps_slim80_personal_blend_prob.csv  # LGB GPS Slim 80% + Personal Blend (Public 0.6079)
+│   ├── cb_gps_slim80_personal_blend_prob.csv   # CB GPS Slim 80% + Personal Blend (WS OOF 0.6485)
+│   ├── xgb_gps_slim80_personal_blend_prob.csv  # XGB GPS Slim 80% + Personal Blend (WS OOF 0.6120, 미제출)
+│   ├── et_lgb_ensemble_prob.csv          # ET + LGB 앙상블 (Public 0.5982)
+│   ├── et_lgb_cb_ensemble_prob.csv       # ET + LGB + CB 3-way 앙상블 (Public 0.5963)
+│   ├── et_lgb_cb_w2_ensemble_prob.csv    # ET + LGB + CB 2:1:1 앙상블 (Public 0.5962, 현재 최고)
+│   ├── et_xgb_ensemble_prob.csv          # ET + XGB 1:1 앙상블 (Public 0.5968)
+│   ├── et_xgb_w2_ensemble_prob.csv       # ET + XGB 1:2 앙상블 (미제출)
+│   ├── et_xgb_lgb_ensemble_prob.csv      # ET + XGB + LGB 3-way 앙상블 (미제출)
+│   ├── et_lgb_cb_xgb_ensemble_prob.csv   # ET + LGB + CB + XGB 4-way 앙상블 (Public 0.5955, 현재 최고)
+│   ├── et_gps_whrvar_slim80_personal_blend_prob.csv  # ET GPS wHr변동성 Slim 80% Personal Blend (미제출, WS OOF 0.6486)
+│   ├── et_gps_rolling_slim80_personal_blend_prob.csv # ET GPS Rolling Slim 80% Personal Blend (미제출, WS OOF 0.6443)
+│   ├── hgb_gps_rolling_slim80_personal_blend_prob.csv # HGB GPS Rolling Slim 80% Personal Blend (미제출, WS OOF 0.6204)
+│   ├── et_gps_slim80_seasonal_blend_prob.csv  # ET GPS Slim 80% Seasonal (WS OOF 0.6504, 3-way 앙상블 일부)
+│   ├── lgb_gps_slim80_seasonal_blend_prob.csv # LGB GPS Slim 80% Seasonal (3-way 앙상블 일부)
+│   ├── xgb_gps_slim80_seasonal_blend_prob.csv # XGB GPS Slim 80% Seasonal (3-way 앙상블 일부)
+│   ├── et_gps_slim80_summer_holdout_blend_prob.csv  # ET Summer Holdout (OOF 0.6224, Public 0.6048)
+│   ├── et_gps_slim80_rolling_whr_seasonal_blend_prob.csv # Rolling+WHR Seasonal (WS OOF 0.6427, Public 0.6001)
+│   ├── et_gps_slim80_pertarget_seasonal_blend_prob.csv   # Per-Target 피처 선택 Seasonal (WS OOF 0.6398, Public 0.6031)
+│   ├── et_gps_slim80_density_blend_prob.csv   # Density Ratio Weighting (WS OOF 0.6470, 미제출)
 │   ├── optuna_params.json                # 모델별 Optuna best_params 캐시
 │   ├── feature_result.md                 # 3가지 방법론 피처 중요도 전체 수치
 │   └── submission_result.md
@@ -217,7 +262,37 @@ $$\text{score} = \frac{1}{K} \sum_{k=1}^{K} \left( -\frac{1}{n} \sum_{i=1}^{n} \
 | et_gps_slim80_alldata_ws_prob | 0.6009 | 전체 데이터 학습 + WS OOF 편향 보정 (100% warm-start) |
 | et_gps_slim80_personal_blend_prob | 0.5992 | 전체 모델(80%) + 피험자별 개인 모델(20%) 블렌딩 (alpha=0.2056, WS OOF 0.6493) |
 | et_gps_slim80_pers_pertarget_prob | 0.6027 | per-target alpha (Q2=0.0, S1=0.5054, S2=0.4677) — WS OOF 0.6440 개선 but Public 역전 (단일 alpha 대비 악화) |
-| **et_gps_slim80_pers_grid_best_prob** | **신기록** | 개인 모델 params grid search 최적 — depth=2, max_feat=0.5, min_leaf=3, alpha=0.3595, WS OOF 0.6408 (baseline 0.6486 대비 -0.0078) |
+| **et_gps_slim80_pers_grid_best_prob** | **0.5989** | 개인 모델 params grid search 최적 — depth=2, max_feat=0.5, min_leaf=3, alpha=0.3595, WS OOF 0.6408 |
+| et_gps_slim80_global_ws_optuna_prob | 0.5999 | Global ET WS OOF Optuna 50 trials (WS 맥락 재최적화) |
+| lgb_gps_slim80_personal_blend_prob | 0.6079 | LGB GPS Slim 80% + Personal Blend (WS OOF Optuna 50 trials) |
+| **et_lgb_ensemble_prob** | **0.5982** | ET(pers_grid_best) + LGB 앙상블 — ET+LGB 이종 모델 결합 |
+| et_gps_slim80_cross_target_prob | 미제출 | Cross-Target Stacking (WS OOF 0.6427 악화 — 미제출) |
+| cb_gps_slim80_personal_blend_prob | 미제출 | CB GPS Slim 80% + Personal Blend (WS OOF 0.6485, 앙상블 다양성용) |
+| et_lgb_cb_ensemble_prob | 0.5963 | ET+LGB+CB 3-way 앙상블 (1:1:1) — et_lgb(0.5982) 대비 +0.0019 개선 |
+| **et_lgb_cb_w2_ensemble_prob** | **0.5962** | **ET+LGB+CB 2:1:1 앙상블 (ET 비중 강화) — 현재 최고** |
+| xgb_gps_slim80_personal_blend_prob | 0.6037 | XGB GPS Slim 80% + Personal Blend — WS OOF 0.6120(최고)이나 Public 심한 과적합 |
+| et_xgb_ensemble_prob | 0.5968 | ET + XGB 1:1 앙상블 — et_lgb_cb(0.5963) 대비 소폭 악화 |
+| et_xgb_w2_ensemble_prob | 미제출 | ET + XGB 1:2 앙상블 (XGB 비중 강화) — XGB 과적합으로 제출 불필요 |
+| et_xgb_lgb_ensemble_prob | 미제출 | ET + XGB + LGB 3-way — XGB 과적합으로 제출 불필요 |
+| **et_lgb_cb_xgb_ensemble_prob** | **0.5955** | **ET + LGB + CB + XGB 4-way 앙상블 — 현재 최고. XGB 단독 나빠도 다양성 기여** |
+| hgb_gps_slim80_personal_blend_prob | 미제출 | HGB GPS Slim 80% + Personal Blend (WS OOF 0.6249, alpha=0.3385, S3=0.5584 강점) |
+| et_lgb_cb_hgb_ensemble_prob | 미제출 | ET+LGB+CB+HGB 4-way (XGB 제외) |
+| et_lgb_cb_xgb_hgb_ensemble_prob | 미제출 | ET+LGB+CB+XGB+HGB 5-way 1:1:1:1:1 |
+| et_lgb_cb_xgb_hgb_w2_ensemble_prob | 미제출 | ET+LGB+CB+XGB+HGB 5-way ET 비중 2배 |
+| et_gps_whrvar_slim80_personal_blend_prob | 미제출 | ET GPS + wHr변동성 Slim 80% Personal Blend (WS OOF 0.6486 — wHr 0/7 선택, 방향 폐기) |
+| et_gps_rolling_slim80_personal_blend_prob | 미제출 | ET GPS + Rolling Slim 80% Personal Blend (WS OOF 0.6443 — 22/57 rolling 선택, 방향 폐기) |
+| hgb_gps_rolling_slim80_personal_blend_prob | 미제출 | HGB GPS + Rolling Slim 80% Personal Blend (WS OOF 0.6204 신기록 — Public 역전 확인, 방향 폐기) |
+| et_fwdlabel_slim80_personal_blend_prob | 미제출 | ET GPS + 역방향 피처(fwd_lag1/roll7/roll14 21개) + Personal Blend (WS OOF 0.6357, alpha=0.3637 — 21/21 fwd 피처 선택, S1=0.5324 대폭 개선) |
+| et_gps_slim80_seasonal_blend_prob | - | ET GPS Slim 80% + Seasonal Re-weight (Jun-Jul x2.0) + Personal Blend (WS OOF 0.6504, alpha=0.2056) |
+| lgb_gps_slim80_seasonal_blend_prob | - | LGB GPS Slim 80% + Seasonal Re-weight + Personal Blend |
+| xgb_gps_slim80_seasonal_blend_prob | - | XGB GPS Slim 80% + Seasonal Re-weight + Personal Blend |
+| **ensemble_sh_et_sea_lgb_sea_xgb_sea_prob** | **0.5987** | **ET+LGB+XGB Seasonal 3-way 균등 앙상블 — 현재 최고** |
+| ensemble_seasonal_5way (et+lgb+xgb+cb+hgb) | 0.6006 | 5-way Seasonal 앙상블 — CB/HGB 추가로 역효과 |
+| et_gps_slim80_summer_holdout_blend_prob | 0.6048 | Summer Holdout Val (Jun-Jul=val, Oct-Nov=train, id04/05 WS fallback) — 계절 가중치보다 효과 없음 |
+| ensemble_sh_et_sea_lgb_sea_xgb_sea_xgb_sh_prob | 0.5984 | Seasonal 3-way + XGB Summer Holdout 앙상블 — 개선 미미 |
+| et_gps_slim80_rolling_whr_seasonal_blend_prob | 0.6001 | Rolling(ma3/ma7/delta3 57개)+WHR변동성(7개) 추가, WS OOF 0.6427 개선→Public 역전 |
+| et_gps_slim80_pertarget_seasonal_blend_prob | 0.6031 | 타깃별 독립 피처 선택 (Q3:69, S2:64, S4:118개), WS OOF 0.6398 개선→Public 역전 |
+| et_gps_slim80_density_blend_prob | 미제출 | Density Ratio Weighting — Jun-Jul(0.187)이 Oct(2.431)보다 낮은 DR, WS OOF 0.6470 |
 
 ---
 
@@ -1368,12 +1443,14 @@ alpha: WS OOF val log-loss 최소화로 전역 최적화
 | **WS val이 신뢰 가능한 estimator** | et_ws_cv_transductive의 WS val OOF(0.6266)가 Public(0.6267)과 매우 근접. LOSO OOF(~0.640)보다 더 실제 test 분포를 반영. 단 WS 모델이 Optuna에서 depth=3~5 얕은 트리를 찾아 모델 자체가 약함 → WS val이 좋은 측정 도구이나 모델 품질은 LOSO가 우위. |
 | **MLP × LOSO 근본 부적합** | MLP는 9명 학습 데이터의 공통 패턴을 암기. held-out subject에서 역예측 발생. OOF 1.1551 > 랜덤 0.693 → 아무것도 모르는 것보다 나쁜 모델. 코드 버그가 아닌 구조적 문제(LOSO cold-start × 신경망 암기). MLP는 WS CV 구조에서만 시도 가능. |
 | **Hard threshold → Pseudo-labeling 폐기** | p>0.85 고신뢰 예측을 hard 1로 바꾸면 Public 0.9682(대폭 악화). S1~S3 다수 예측이 0.9 부근에서 오답. ET 모델이 해당 타깃들에 대해 체계적 과신 편향을 가짐. pseudo-labeling은 오답 레이블을 학습에 추가하는 역효과 확정. |
+| **WS OOF 신기록의 역설** | hgb_gps_rolling_slim80 WS OOF 0.6204(역대 최고)이나 Public 악화 확인. Rolling 피처(ma3/ma7/delta3) + Personal Blend 조합이 WS holdout(피험자별 마지막 20%)에만 과적합. WS split의 시간순 구조가 rolling 피처를 유독 유리하게 평가 — WS OOF 낮다고 항상 Public 개선되지 않음. NaN 네이티브 HGB가 rolling 43/57 선택 vs ET 22/57 차이도 주목. |
+| **wHr 변동성 피처의 NaN 함정** | hr_sleep_iqr/p10/p90 등 wHr 변동성 7개 피처가 ET slim 80%에서 0/7 선택. 원인: wHr 데이터 225행(50%)이라 NaN 50% 피처 → ET 중요도 자동 낮아짐. HGB(NaN 네이티브)에서는 선택될 수 있으나 개인 모델 분산 과다 문제로 상쇄. 50% 이상 NaN 피처는 fillna 기반 모델에서 원천적으로 불리. |
 
 ---
 
 ## 향후 개선 방향
 
-> 현재 최고 공개점수: **신기록** (et_gps_slim80_pers_grid_best — depth=2, max_feat=0.5, min_leaf=3, alpha=0.3595) / 이전 최고: **0.5992** (personal_blend — Global 80% + Personal 20%) / OOF 최고: **0.6329** (MLP+HGB+ET 가중치, Public 역전) / 리더보드 1위: 0.56119
+> 현재 최고 공개점수: **0.5955** (et_lgb_cb_xgb — ET+LGB+CB+XGB 4-way 앙상블) / 이전 최고: **0.5962** (et_lgb_cb_w2 — ET+LGB+CB 2:1:1) / WS OOF 최고: **0.6204** (hgb_gps_rolling, Public 역전 확인) / 리더보드 1위: 0.56119
 
 ### 성능 병목 분석
 
@@ -1450,13 +1527,34 @@ Q1("수면의 질 — 기상 직후")은 모든 모델에서 LL ≈ 0.699 고착
 | 41 | ~~전체 데이터 학습 + WS OOF 편향 보정 (alldata_ws)~~ | ✅ 완료 — **Public 0.6009 (현재 최고)**. 100% warm-start 구조 불일치 해소 효과 확인 |
 | 42 | ~~피험자별 개인 모델 블렌딩 (personal_blend)~~ | ✅ 완료 — **Public 0.5992 (현재 최고)**. alpha=0.2056(Global 80% + Personal 20%). alldata_ws(0.6009) 대비 추가 개선 |
 | 43 | ~~per-target alpha 최적화 (pers_pertarget)~~ | ✅ 완료 — Public 0.6027 (WS OOF 0.6440 개선 but Public 역전). per-target 자유도 7개가 WS OOF 과적합 유발 |
-| 44 | ~~개인 모델 파라미터 grid search (depth×max_feat×min_leaf)~~ | ✅ **신기록** — depth=2, max_feat=0.5, min_leaf=3, alpha=0.3595, WS OOF 0.6408 (baseline 0.6486 대비 -0.0078). 정규화 강화 방향(얕은 depth + 높은 min_leaf)이 유효 |
+| 44 | ~~개인 모델 파라미터 grid search (depth×max_feat×min_leaf)~~ | ✅ 완료 — depth=2, max_feat=0.5, min_leaf=3, alpha=0.3595, **Public 0.5989** |
+| 45 | ~~Global ET WS OOF Optuna 재탐색~~ | ✅ 완료 — **Public 0.5999**. WS 맥락 재최적화로 pers_grid_best 대비 미개선. WS OOF 0.6329 |
+| 46 | ~~LGB GPS Slim 80% Personal Blend~~ | ✅ 완료 — **Public 0.6079**. LGB WS OOF Optuna 50 trials. ET(0.5989) 대비 열세 — 소규모 데이터에서 ET 강함 재확인 |
+| 47 | ~~ET + LGB 앙상블~~ | ✅ 완료 — **Public 0.5982 (당시 최고)**. 이종 모델 결합으로 분산 감소. pers_grid_best(0.5989) 대비 +0.0007 개선 |
+| 48 | ~~Cross-Target Stacking (LOSO OOF ct 피처)~~ | ✅ 완료 — 미제출 (WS OOF 0.6427 악화). LOSO OOF ct 피처가 WS split에서 노이즈로 작용. personal_blend(0.6329) 대비 열세 |
+| 49 | ~~CatBoost GPS Slim 80% Personal Blend~~ | ✅ 완료 — WS OOF 0.6485 (단독 최약). subject_enc categorical 처리로 앙상블 다양성 기여 의도 |
+| 50 | ~~ET+LGB+CB 3-way 앙상블~~ | ✅ 완료 — **Public 0.5963**. ET+LGB(0.5982) 대비 +0.0019 개선. CB 이종 오류 패턴 기여 |
+| 51 | ~~ET+LGB+CB 2:1:1 앙상블 (ET 비중 강화)~~ | ✅ **완료 — Public 0.5962 (현재 최고)**. 3-way 1:1:1(0.5963) 대비 +0.0001 추가 개선. ET 신뢰성 우월 재확인 |
+| 52 | ~~XGB GPS Slim 80% Personal Blend~~ | ✅ 완료 — WS OOF blend LL **0.6120** (모든 단일 모델 최고, alpha=0.2382). 미제출 |
+| 53 | ~~ET + XGB 1:1 앙상블~~ | ✅ 완료 — **Public 0.5968**. et_lgb_cb_w2(0.5962) 대비 악화. XGB WS OOF 신뢰성 낮음 시사 |
+| 54 | ~~XGB GPS Slim 80% Personal Blend 단독~~ | ✅ 완료 — **Public 0.6037** (WS OOF 0.6120 대비 큰 괴리). XGB 소규모 데이터 과적합 심함 |
+| 55 | ~~ET + LGB + CB + XGB 4-way 앙상블~~ | ✅ **완료 — Public 0.5955 (현재 최고)**. 단독 성능 나빠도 앙상블 다양성 기여. 이종 모델 전략 재확인 |
+| 56 | ~~HGB GPS Slim 80% Personal Blend~~ | ✅ 완료 — WS OOF blend LL **0.6249** (alpha=0.3385). S1=0.6017, S3=0.5584 강점. ET보다 우수한 WS OOF |
+| 57 | ~~wHr 변동성 피처 + ET Personal Blend~~ | ❌ WS OOF 0.6486 (personal_blend 0.6329 대비 악화). ET slim 80%에서 wHr 변동성 피처 **0/7 선택** — 50% NaN 피처는 ET 중요도 낮음. 방향 폐기 |
+| 58 | ~~HGB 개인 모델 블렌딩 (Global ET + Personal HGB)~~ | ❌ WS OOF 0.6508 (ET 개인 모델 대비 악화). alpha=0.0977 극소 — 30~50행에 ~190개 피처 HGB 분산 과다. 방향 폐기 |
+| 59 | ~~Rolling 피처 추가 ET (ma3/ma7/delta3, 19기준→57개)~~ | ❌ WS OOF 0.6443. 22/57 rolling 피처 선택. LOSO 환경 센서 lag 과적합 패턴 반복 |
+| 60 | ~~HGB GPS + Rolling Slim 80% Personal Blend~~ | ❌ WS OOF **0.6204** (신기록)이나 Public 악화 확인. 43/57 rolling 피처 선택(HGB NaN 네이티브 덕분). WS OOF 최적화 방향 자체가 Public 역전 — Personal Blend + Rolling 전체 방향 폐기 |
 
 ### 남은 개선 방향 (우선순위 순)
 
-> **현재 상황 (44단계 완료)**: pers_grid_best 신기록 달성. 개인 모델 정규화 강화(depth=2, min_leaf=3)가 유효함 확인. per-target alpha는 WS OOF 개선 → Public 역전 (과적합). 다음은 **Global 모델 WS OOF 기반 Optuna 재탐색** (현재 slim80 params가 LOSO 기반 — WS 맥락 재최적화 필요).
+> **현재 상황 (60단계 완료)**: ET+LGB+CB+XGB 4-way **0.5955** (현재 최고). wHr 변동성, HGB 개인 모델, Rolling 피처 (ET/HGB) 실험 완료 — 모두 Public 역전 확인. WS OOF 신기록(0.6204) 달성이나 Public 악화 — WS OOF 기반 최적화 방향 자체 폐기. 앙상블 가중치 Optuna, Stacking 구조적 한계 확인. **근본적 전략 전환 필요: LOSO 패러다임 탈피 → WS CV + 피험자 직접 모델링.**
 
-**핵심 교훈**: 데이터에 직접 맞추는 방향(per-target alpha)은 과적합 위험 높음. 모델 구조적 파라미터(depth, min_leaf) 변경은 WS OOF 개선이 Public으로도 이어짐.
+**핵심 교훈**:
+- 모델 다양성(ET+LGB+CB) > 피처 복잡도 증가
+- WS OOF 개선 ≈ Public 개선 (단, per-target alpha 과적합 예외, XGB WS OOF도 주의)
+- 소규모 데이터에서 ET가 LGB/CB/XGB보다 강함 (ET 0.5989 < LGB 0.6079 < CB 0.6485 < XGB WS 0.6120)
+- ET 비중 강화(2:1:1)가 균등(1:1:1)보다 유리 — ET 신뢰성 재확인
+- XGB WS OOF 0.6120은 앙상블 노이즈 가능성 → 4-way 시 낮은 가중치 권장
 
 #### 완료된 방향
 
@@ -1474,6 +1572,9 @@ Q1("수면의 질 — 기상 직후")은 모든 모델에서 LL ≈ 0.699 고착
 | ~~MLP LOSO~~ | ~~폐기 — OOF 1.1551, MLP×LOSO 구조적 부적합~~ |
 | ~~per-target alpha 최적화~~ | ~~완료 — Public 0.6027 (역전). WS OOF 자유도 7개 과적합~~ |
 | ~~개인 모델 파라미터 grid search~~ | ~~완료 — 신기록. depth=2, max_feat=0.5, min_leaf=3 최적~~ |
+| ~~wHr 변동성 피처 추가~~ | ~~완료 — WS OOF 0.6486 (악화). ET slim 80%에서 0/7 선택, 50% NaN으로 ET 중요도 낮음~~ |
+| ~~HGB 개인 모델 교체 (ET depth=2 → HGB)~~ | ~~완료 — WS OOF 0.6508 (악화). alpha=0.097 극소, 30~50행에 190개 피처 분산 과다~~ |
+| ~~Rolling 피처 (ma3/ma7/delta3)~~ | ~~완료 — ET WS OOF 0.6443, HGB WS OOF 0.6204. 신기록 달성이나 Public 역전 — WS OOF 기반 최적화 방향 자체 폐기~~ |
 
 #### 완료 후 제출 대기 방향
 
@@ -1487,26 +1588,109 @@ Q1("수면의 질 — 기상 직후")은 모든 모델에서 LL ≈ 0.699 고착
 
 #### 미완료 방향 (우선순위 순)
 
-| 순위 | 방법 | 핵심 근거 | 리스크 |
-|------|------|-----------|--------|
-| **1순위** | **Global 모델 WS OOF 기반 Optuna 재탐색** | 현재 slim80 params는 LOSO로 최적화됨. WS 맥락(평가 기준 상이)에서 재탐색 시 다른 최적 params 발견 가능. Global이 80% 가중치 → 개선 영향 가장 큼 | **낮음** — 기존 Optuna 구조 재활용, WS OOF로 목적함수만 교체 |
-| **2순위** | **모델 다양화 (HGB Global 추가)** | 현재 Global이 ET 단일 모델. HGB를 Global에 추가해 앙상블하면 분산 감소. `Global = 0.7*ET + 0.3*HGB` 형태 | **낮음** — 검증된 HGB 파라미터 재활용 가능 |
-| **3순위** | **피처 개선** | sensor_lag_features.py 기존 구현됨(미적용). v4 피처(hr_extsleep, ac_*)를 personal_blend 맥락에서 재검토. personal_blend 도입 전 피처 실험이라 재평가 가치 있음 | **낮음** — WS OOF로 검증 후 제출 |
-| **4순위** | **MLP + WS CV** | WS val이 신뢰 가능한 estimator 확인(0.6266 ≈ Public 0.6267). MLP×LOSO는 cold-start로 근본 부적합하나, WS CV 구조에서는 MLP가 피험자 패턴 학습 가능 | **중간** — 구현 복잡, 시간 소요 |
+> **구조적 진단 (업데이트)**: WS val(마지막 20%) 구조가 실제 테스트를 잘못 시뮬레이션. 실제 test = [Train앞]→[TEST중간]→[Train뒤] 구조인데, WS val = [Train]→[VAL끝]로 val 이후 training이 없음 → fwd features가 val에서 NaN, test에서는 실제 값 → 분포 불일치로 WS OOF 신뢰 불가. **해결: Middle-Block CV** (val=중간 블록, train=앞+뒷블록).
 
-#### 1순위 상세: Global 모델 WS OOF 기반 Optuna 재탐색
+| 순위 | 방법 | 핵심 근거 | 난이도 | 리스크 |
+|------|------|-----------|--------|--------|
+| ~~폐기~~ | ~~앙상블 가중치 Optuna~~ | ~~WS OOF 기반 최적 비율 탐색 → et_gps_slim80_global_ws_optuna(0.5999)로 효과 미미 확인~~ | ~~—~~ | ~~완료~~ |
+| ~~폐기~~ | ~~Stacking (meta-learner)~~ | ~~Q1/Q3/S1에서 상수 예측 — 90행 WS OOF로는 5모델 차별 가중치 학습 불가. 구조적 한계~~ | ~~—~~ | ~~완료~~ |
+| ~~폐기~~ | ~~Multi-window WS CV + subject_id 직접 피처화~~ | ~~WS OOF 0.6324 — Q3(0.6782)/S3(0.6345) 심각 악화. 방향 폐기~~ | ~~—~~ | ~~완료~~ |
+| ~~완료~~ | ~~역방향 시간 피처 (WS val 기반 평가)~~ | ~~WS OOF 0.6357, 21/21 선택. WS val fwd=NaN → val/test 분포 불일치. Middle-Block CV로 대체 필요~~ | ~~—~~ | ~~완료~~ |
+| ~~완료~~ | ~~Kernel Smoothing blend~~ | ~~bandwidth=60일 WS OOF 0.6489. a2 blend(KS 20%+ET 80%) 소폭 개선. S1/S4 강점, Q2/Q3 약점~~ | ~~—~~ | ~~완료~~ |
+| **1순위** | **Middle-Block CV + fwd 피처** | val=중간 블록(40~60%), train=앞블록+뒷블록. 실제 테스트 구조 완전 일치. fwd features가 val에서도 실제 값 → WS OOF 신뢰성 회복 | **중** | **낮음** — 기존 피처/모델 유지, CV 구조만 변경 |
+| **2순위** | **피험자별 독립 모델 (Per-subject LogReg)** | LOSO 패러다임 원천 차단. 각 피험자 S 타깃 T: LogReg(C=grid) on S's 33-57 rows. Q1 고착(0.699) 해결 가능성 | **낮음** | **중** — 소표본 분산 위험 |
+| **3순위** | **GP 시계열 보간 (Gaussian Process interpolation)** | 각 (피험자, 타깃)을 시간축 GP로 모델링. train labels=관측, test dates=보간점. 양방향 블록 구조를 자연스럽게 포착 | **높음** | **중** — 이진 GP 커널 선택 복잡 |
+| **4순위** | **MLP + WS CV + Subject Embedding** | WS val ≈ Public 확인(0.6266 ≈ 0.6267). Subject embedding으로 Q1 고착(0.699) 해결 가능성. MLP×LOSO는 실패이나 MLP×WS CV는 미시도 | **높음** | **중** — 구현 복잡, 시간 소요 |
+| **5순위** | **Ridge personal model (ET depth=2 교체)** | 30~50행 소표본에서 ET(depth=2)보다 L2 logistic regression이 이론적으로 더 안정적 | **낮음** | **낮음** — 단독 효과 제한적 |
+
+#### 1순위 상세: 역방향 시간 피처 (Forward-label features)
+
+**데이터 구조 활용**
+```
+train/test 날짜는 피험자별 블록 교차:
+  [Train: Jun~Jul] -> [TEST: Aug~Sep] -> [Train: Oct~Nov]
+
+현재 사용: Aug~Sep test rows -> Jun~Jul labels만 참조 (lag/roll)
+미사용: Oct~Nov training labels (test보다 미래지만 train split에 존재)
+```
+
+**피처 정의**
+```
+query_sleep_date = test row의 sleep_date
+
+fwd_lag1_{t}: query_sleep_date 이후 가장 가까운 train label (nearest future)
+fwd_roll7_{t}: query_sleep_date + 1 ~ +7일 이내 train labels 평균
+fwd_roll14_{t}: query_sleep_date + 1 ~ +14일 이내 train labels 평균
+
+총 21개 피처 (7 targets x 3 window)
+```
+
+**구현 핵심**
+```
+Train rows fwd 계산: same subject의 나중 training dates에서 참조
+  Jun~Jul train rows: Oct~Nov training labels -> fwd 피처 값 존재
+  Oct~Nov train rows: fwd features = NaN (더 나중 training 없음)
+
+LOSO fold val rows fwd 계산: fold의 train_fold로만 참조
+  val subject는 fold의 training에 없음 -> fwd = NaN (leakage 없음)
+  test 시점에는 Oct~Nov labels 실제 존재 -> fwd 값 채워짐
+
+ET NaN 처리: fold train median imputation
+  학습 시: NaN을 중앙값으로 처리 (neutral)
+  test 시: 실제 forward label 값 입력 -> 예측 개선 기대
+```
+
+**기대 효과**
+```
+동일 피험자의 Oct~Nov 수면 질 = Aug~Sep 수면 질의 강한 예측 신호
+  -> 특히 Q1(수면의 질) 고착(0.699) 해결 가능성
+  -> 개인별 sleep pattern의 시간 안정성 활용
+```
+
+**구현 파일**: `scripts/et_fwdlabel_slim80_personal_blend.py`
+
+#### 2순위 상세: GP 시계열 보간 (Gaussian Process interpolation)
 
 ```
-현재 slim80 params: LOSO GroupKFold(10) 목적함수로 최적화
-재탐색 목적함수:    WS OOF (피험자별 최근 20% holdout) — personal_blend 실제 평가 기준과 동일
+각 (피험자, 타깃) 쌍을 시간축 위의 GP로 모델링:
+  관측: train labels (이진 0/1 -> probit/logit 변환 후 연속값 근사)
+  보간: test dates (train 블록 사이에 위치)
 
-LOSO vs WS의 차이:
-  LOSO: 미지 피험자 예측 → 피험자 간 일반화 강조
-  WS:   기존 피험자의 미래 날짜 예측 → 피험자 내 시간 일반화 강조
-  → 최적 n_estimators, max_depth, max_features가 다를 수 있음
+커널 후보:
+  RBF (Radial Basis Function): 시간적 smooth 패턴 포착
+  Matern 3/2 또는 5/2: 거칠기 조절, 이진 레이블에 더 현실적
+  Periodic + RBF: 주간 패턴 + 장기 트렌드
+
+장점: 양방향 블록 구조 (Jun~Jul / Oct~Nov) 자연스럽게 포착
+단점: 이진 레이블 GP (Bernoulli likelihood) 구현 복잡
+     피험자당 30~50 관측으로 커널 학습 불안정 가능성
 ```
 
-#### ~~1순위~~: MLP + WS CV 참고
+#### 이전 1순위(폐기) 상세: Multi-window WS CV + subject_id 직접 피처화
+
+**현재 WS CV의 약점**
+```
+단일 분할(80/20): 피험자당 val 20행 → Optuna 불안정 → depth=3~5 약한 트리
+해결: 피험자당 3개 분할점의 OOF 평균을 목적함수로 사용
+
+windows = [0.60, 0.70, 0.80]
+  window_1: train [0~60%], val [60~80%]
+  window_2: train [0~70%], val [70~90%]
+  window_3: train [0~80%], val [80~100%]
+  OOF = 3 window 평균 → Optuna 신호 3배 → depth=8~15 수준 모델 기대
+```
+
+**subject_id 직접 피처화**
+```
+LOSO에서 불가: held-out subject의 ID는 학습에서 본 적 없음
+WS CV에서 가능: 모든 피험자가 train/val에 동시 등장
+
+효과: 트리가 "id03이면 Q1 기준선 높음" 같은 피험자별 규칙을 직접 학습
+     → 현재 subj_mean보다 훨씬 풍부한 피험자 개인화
+     → Q1 고착(0.699) 해결 가능성 — subj_mean_Q1은 항상 NaN이나 subject_id는 사용 가능
+```
+
+#### 2순위 상세: MLP + WS CV + Subject Embedding
 
 ```
 WS val 검증 결과 (et_ws_cv_transductive에서 확인):
@@ -1514,10 +1698,34 @@ WS val 검증 결과 (et_ws_cv_transductive에서 확인):
 
 MLP + LOSO (실패):  LOSO cold-start → MLP 역예측 → OOF 1.1551
 MLP + WS CV:        학습 fold에 해당 피험자 포함 → MLP가 피험자 패턴 학습 가능
-                    → WS val로 평가하면 Public과 근접한 성능 추정 가능
+
+아키텍처 (subject embedding 추가):
+  Input: sensor features + lag features
+  Subject Embedding: nn.Embedding(10, 8) → 피험자별 학습 가능한 8차원 벡터
+  Forward: [concat(X, subj_emb)] → Linear(256) → BN → ReLU → Drop
+                                 → Linear(128) → BN → ReLU → Drop
+                                 → 7 targets (Q1~S4)
+
+기대:
+  Q1 고착 해결 — subject embedding이 피험자별 수면의 질 기준선 직접 학습
+  S1~S4 강점 유지 — MLP가 센서 타깃에서 ET 대비 우위 확인된 패턴 재현
+  기존 LOSO 앙상블(ET+LGB+CB+XGB)과 다른 귀납 편향 → 앙상블 다양성 기여
 ```
 
-WS CV Optuna가 depth=3~5 얕은 트리를 찾은 이유: val 20행(소규모)에 최적화. MLP는 validation loss 기반이므로 이 문제가 덜 심각할 수 있음.
+#### 3순위 상세: Ridge personal model
+
+```
+현재 개인 모델: ET(depth=2, max_feat=0.5, min_leaf=3) — 30~50행에서 여전히 과적합 가능성
+대안: L2 Logistic Regression (Ridge)
+  - C 파라미터로 정규화 강도 조절 (C=0.01~1.0 grid search)
+  - 30~50행 소표본에서 이론적으로 최적
+  - 선형 결정 경계 → 피험자별 개인 편차만 학습
+
+구현:
+  Global 모델 (LOSO ET): 기존 유지
+  Personal 모델: LogisticRegression(C=C_opt, max_iter=1000) per subject per target
+  Blend: alpha × personal + (1-alpha) × global  (WS OOF 최적화)
+```
 
 #### Q1 고착 문제
 
@@ -1545,6 +1753,76 @@ Q1("수면의 질 — 기상 직후")은 모든 모델에서 LL ≈ 0.699 고착
 | ~~OOF 가중 앙상블~~ | ❌ OOF 비정상(0.75) | val subject subj_mean NaN으로 LGBM/CatBoost 붕괴 |
 | ~~LGBM+CatBoost+ET 3모델~~ | ❌ OOF 0.7074 | NaN 미처리 LGBM OOF 1.009로 앙상블 전체 저하 |
 
+### 35단계: Seasonal Re-weighting + 이종 모델 앙상블 — 현재 최고 공개점수
+
+Train(Jun-Jul + Oct-Nov) → Test(Aug-Sep) 분포 이동을 직접 겨냥해 여름 샘플에 높은 가중치 부여.
+
+**Seasonal Re-weighting 원리**
+```python
+SUMMER_WEIGHT = 2.0
+sample_weight = 2.0 if month in [6, 7] else 1.0
+```
+Jun-Jul(여름) 200행 × 2.0 = 효과적 400행, Oct-Nov 250행 × 1.0. 여름 패턴이 test(Aug-Sep)에 더 가깝다는 가정.
+
+**ET+LGB+XGB Seasonal 3-way 결과**
+
+| 모델 | WS OOF LL | Public |
+|------|:---------:|:------:|
+| ET Seasonal | 0.6504 | (3-way 구성) |
+| LGB Seasonal | - | (3-way 구성) |
+| XGB Seasonal | - | (3-way 구성) |
+| **3-way 균등 앙상블** | — | **0.5987 (현재 최고)** |
+
+CB Seasonal(WS OOF 0.6485)·HGB Seasonal(WS OOF 0.6249)을 추가한 5-way 앙상블은 Public 0.6006으로 역효과.
+
+**핵심 발견**: CB/HGB가 ET/LGB/XGB보다 Public에서 열세 — 이종 모델 추가가 항상 유리하지 않음.
+
+### 36단계: 도메인 이동 해소 실험 — 반복 실패
+
+**Summer Holdout Validation** (Jun-Jul=val, Oct-Nov=train per subject)
+- id04/id05는 Jun-Jul 데이터 없어 WS fallback 적용
+- ET Summer Holdout OOF 0.6224, Public **0.6048** — seasonal보다 효과 없음
+- 여름 데이터가 별도 val로 쓰이면 정보 손실이 더 크다는 결론
+
+**Rolling + WHR 변동성 피처** (57개 rolling + 7개 WHR)
+- WS OOF 0.6427 (seasonal 0.6504보다 개선)
+- Public **0.6001** — OOF 개선이 또다시 Public 역전
+
+**타깃별 독립 피처 선택 (Per-Target Slim 80%)**
+- Q3: 69개, S2: 64개, S4: 118개 — 타겟마다 최적 피처셋 상이
+- WS OOF 0.6398 (역대 최고)
+- Public **0.6031** — OOF-Public 역전 패턴 재확인
+
+**핵심 교훈**: WS OOF 개선이 Public 개선으로 이어지지 않는 패턴이 반복. 검증 지표 신뢰도 자체가 한계.
+
+### 37단계: Density Ratio Weighting — Jun-Jul이 test와 덜 유사
+
+고정 계절 가중치(2.0)를 학습 가능한 density ratio로 교체.
+
+**방법론**
+```python
+# train+test 피처로 binary classifier (train=0, test=1) 학습
+clf = LogisticRegression(C=0.1)
+clf.fit(X_combined, y_combined)
+p_test = clf.predict_proba(X_train)[:, 1]
+weight = p_test / (1 - p_test) * (n_train / n_test)  # density ratio
+```
+
+**월별 density ratio 분포**
+
+| 월 | mean_dr | n | 예상 대비 |
+|----|:-------:|:-:|---------|
+| 06 | 0.187 | 54 | 예상 밖 낮음 |
+| 07 | 0.401 | 146 | 예상 밖 낮음 |
+| 08 | 1.127 | 131 | — |
+| 09 | 1.826 | 84 | — |
+| 10 | **2.431** | 28 | 예상 밖 높음 |
+| 11 | 1.758 | 7 | — |
+
+**핵심 발견**: "Jun-Jul이 test(Aug-Sep)에 가깝다"는 계절 가중치의 근본 가정이 피처 공간에서 틀림. Oct-Nov이 오히려 test와 더 유사. 계절 패턴보다 **개별 피험자의 월별 특성**이 더 복잡하게 작용.
+
+**결과**: WS OOF 0.6470 (미제출) — seasonal OOF 0.6504 소폭 개선이나 Public 검증 불필요 판단.
+
 ---
 
 ## 환경 설정
@@ -1556,10 +1834,21 @@ uv pip install pandas pyarrow lightgbm scikit-learn optuna shap xgboost catboost
 ### 실행 순서
 
 ```bash
-# 현재 최고 공개점수 (ET GPS Slim 80% + Transductive Z-score, Public 0.6020)
+# 현재 최고 공개점수 (ET+LGB+XGB Seasonal 3-way 앙상블, Public 0.5987)
+# -> ensemble_seasonal_5way.py 실행 후 et_sea+lgb_sea+xgb_sea 3-way 선택
+
+# ET GPS Slim 80% Seasonal (3-way 앙상블 구성 요소)
+uv run scripts/et_gps_slim80_seasonal_blend.py
+uv run scripts/lgb_gps_slim80_seasonal_blend.py
+uv run scripts/xgb_gps_slim80_seasonal_blend.py
+
+# Density Ratio Weighting (WS OOF 0.6470, 미제출)
+uv run scripts/et_gps_slim80_density_blend.py
+
+# Transductive Z-score (Public 0.6020)
 uv run scripts/et_gps_slim80_transductive.py
 
-# 이전 최고 (ET GPS Slim 80% + LOSO logit bias 보정 REG=0.5, Public 0.6027)
+# LOSO logit bias 보정 REG=0.5 (Public 0.6027)
 uv run scripts/et_gps_slim80_calibrated.py
 
 # 피험자별 가변 REG 보정 (미제출, WS OOF 기준 비교 대상)
@@ -1588,4 +1877,19 @@ uv run scripts/et_gps_slim80_ws_calibrated.py
 
 # 베이스 모델 (ET GPS Slim 80%, Public 0.6044)
 uv run scripts/extratrees_gps_slim80_ensemble.py
+
+# 현재 최고 공개점수 (ET+LGB+CB+XGB 4-way 앙상블, Public 0.5955)
+uv run scripts/ensemble_et_xgb.py
+
+# wHr 변동성 피처 + ET Personal Blend (미제출, WS OOF 0.6486 — 방향 폐기)
+uv run scripts/et_gps_whrvar_slim80_personal_blend.py
+
+# ET Global + HGB 개인 모델 블렌딩 (미제출, WS OOF 0.6508 — 방향 폐기)
+uv run scripts/et_gps_whrvar_slim80_hgbpers_blend.py
+
+# ET GPS + Rolling Slim 80% Personal Blend (미제출, WS OOF 0.6443 — 방향 폐기)
+uv run scripts/et_gps_rolling_slim80_personal_blend.py
+
+# HGB GPS + Rolling Slim 80% Personal Blend (미제출, WS OOF 0.6204 신기록 — Public 역전, 방향 폐기)
+uv run scripts/hgb_gps_rolling_slim80_personal_blend.py
 ```
